@@ -19,7 +19,7 @@ target_link_libraries(Slate
         nvrhi_vk
         nvrhi
         glm
-        Jolt
+        box3d
         lua
         sol2
         cgltf
@@ -76,6 +76,12 @@ slate_add_shaders(Slate
     ${CMAKE_SOURCE_DIR}/Assets/Shaders/equirect_to_cube.frag
     ${CMAKE_SOURCE_DIR}/Assets/Shaders/irradiance.frag
     ${CMAKE_SOURCE_DIR}/Assets/Shaders/prefilter.frag
-    ${CMAKE_SOURCE_DIR}/Assets/Shaders/brdf_lut.frag)
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/brdf_lut.frag
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/bloom_prefilter.frag
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/bloom_downsample.frag
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/bloom_upsample.frag
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/bloom_combine.frag
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/ui.vert
+    ${CMAKE_SOURCE_DIR}/Assets/Shaders/ui.frag)
 
 add_dependencies(Slate_shaders SlateAssets)

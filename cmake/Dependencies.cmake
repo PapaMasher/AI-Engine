@@ -25,16 +25,14 @@ add_subdirectory(third_party/nvrhi)
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glm)
 
-# Jolt Physics.
-set(USE_ASSERTS ON CACHE BOOL "" FORCE)
-set(GENERATE_DEBUG_SYMBOLS OFF CACHE BOOL "" FORCE)
-set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
-set(FLOATING_POINT_EXCEPTIONS_ENABLED OFF CACHE BOOL "" FORCE)
-set(CPP_EXCEPTIONS_ENABLED ON CACHE BOOL "" FORCE)
-set(CPP_RTTI_ENABLED ON CACHE BOOL "" FORCE)
-set(ENABLE_ALL_WARNINGS OFF CACHE BOOL "" FORCE)
-set(JPH_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory(third_party/jolt/Build)
+# Box3D physics (the 3D successor to Box2D v3). Build the library only;
+# samples, tests and benchmarks are not needed here.
+set(BOX3D_SAMPLES OFF CACHE BOOL "" FORCE)
+set(BOX3D_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BOX3D_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(BOX3D_DOCS OFF CACHE BOOL "" FORCE)
+set(BOX3D_COMPILE_WARNING_AS_ERROR OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/box3d ${CMAKE_BINARY_DIR}/third_party/box3d EXCLUDE_FROM_ALL)
 
 # Lua 5.4.7 interpreter, built as a static library without the standalone
 # interpreter and compiler front-ends.

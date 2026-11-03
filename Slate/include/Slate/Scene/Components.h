@@ -108,6 +108,14 @@ struct SphereColliderComponent
     float Radius = 0.5f;
 };
 
+// Capsule aligned with the entity's local Y axis: two hemisphere centres
+// separated by 2 * HalfHeight, with Radius around them.
+struct CapsuleColliderComponent
+{
+    float Radius = 0.4f;
+    float HalfHeight = 0.6f;
+};
+
 struct ScriptComponent
 {
     std::string ScriptPath;

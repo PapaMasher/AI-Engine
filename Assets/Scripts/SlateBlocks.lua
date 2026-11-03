@@ -1,6 +1,6 @@
 -- Slate Blocks: a playable 3D Tetris written entirely against the Slate Lua
 -- API. Attach to a "Game" entity; the script spawns and destroys every block
--- itself, so the scene only needs a camera, lights and a backdrop.
+-- itself, draws its own HUD and keeps score.
 --
 -- Controls: Left/Right or A/D move, Down or S soft drop, Up or W rotate,
 -- Space hard drop, Enter restarts after game over.
@@ -34,6 +34,7 @@ local KINDS = { "I", "O", "T", "S", "Z", "J", "L" }
 
 local board = {}
 local piece = nil
+local nextKind = nil
 local dropTimer = 0.0
 local dropInterval = 0.65
 local moveTimer = 0.0
@@ -41,10 +42,11 @@ local moveInterval = 0.14
 local score = 0
 local lines = 0
 local gameOver = false
+local flash = 0.0
 local scoreBar = {}
 local previousKeys = {}
 
-local spawnPiece, lockPiece, clearLines, restart
+local spawnPiece, lockPiece, clearLines, restart, drawHud
 
 local function cellPosition(col, row)
     return ORIGIN_X + col, ORIGIN_Y + row
@@ -110,6 +112,7 @@ local function tryMove(dx, dy)
     piece.col = col
     piece.row = row
     syncPiece()
+    PlaySound("Audio/move.wav", 0.45, false, false)
     return true
 end
 
@@ -132,6 +135,7 @@ local function rotatePiece()
     end
 
     syncPiece()
+    PlaySound("Audio/move.wav", 0.45, false, false)
 end
 
 local function updateScoreBar()
@@ -206,7 +210,9 @@ clearLines = function()
 
     score = score + cleared * 100
     lines = lines + cleared
+    flash = 0.35
     updateScoreBar()
+    PlaySound("Audio/clear.wav", 0.8, false, false)
     Log("CLEARED " .. cleared .. " line(s), score=" .. score .. ", lines=" .. lines)
     return cleared
 end
@@ -225,13 +231,16 @@ lockPiece = function()
     end
 
     piece = nil
+    PlaySound("Audio/lock.wav", 0.7, false, false)
     Log("LOCK score=" .. score)
     clearLines()
     spawnPiece()
 end
 
 spawnPiece = function()
-    local kind = KINDS[math.random(#KINDS)]
+    local kind = nextKind or KINDS[math.random(#KINDS)]
+    nextKind = KINDS[math.random(#KINDS)]
+
     local shape = {}
     for _, cell in ipairs(SHAPES[kind]) do
         table.insert(shape, { cell[1], cell[2] })
@@ -242,6 +251,7 @@ spawnPiece = function()
 
     if not canPlace(shape, col, row) then
         gameOver = true
+        PlaySound("Audio/gameover.wav", 0.8, false, false)
         Log("GAME OVER score=" .. score .. ", lines=" .. lines)
         return
     end
@@ -285,11 +295,29 @@ restart = function()
     score = 0
     lines = 0
     gameOver = false
+    flash = 0.0
     dropTimer = 0.0
     resetBoard()
     updateScoreBar()
     spawnPiece()
     Log("RESTART")
+end
+
+drawHud = function()
+    local hudY = ScreenHeight() - 170.0
+    DrawRect(12.0, hudY, 330.0, 150.0, 0.02, 0.03, 0.05, 0.55)
+    DrawText(26.0, hudY + 8.0, "SCORE " .. score, 30.0, 1.0, 1.0, 1.0, 1.0)
+    DrawText(26.0, hudY + 50.0, "LINES " .. lines, 22.0, 0.72, 0.82, 1.0, 1.0)
+    DrawText(26.0, hudY + 78.0, "NEXT  " .. (nextKind or "-"), 22.0, 0.72, 0.82, 1.0, 1.0)
+    DrawText(26.0, hudY + 108.0, "ARROWS MOVE  UP ROTATE  SPACE DROP", 16.0, 0.55, 0.60, 0.70, 1.0)
+
+    if gameOver then
+        DrawRect(0.0, 0.0, ScreenWidth(), ScreenHeight(), 0.0, 0.0, 0.0, 0.45)
+        DrawText(ScreenWidth() * 0.5 - 120.0, ScreenHeight() * 0.5 - 40.0,
+            "GAME OVER", 44.0, 1.0, 0.30, 0.25, 1.0)
+        DrawText(ScreenWidth() * 0.5 - 110.0, ScreenHeight() * 0.5 + 20.0,
+            "PRESS ENTER TO RESTART", 20.0, 1.0, 1.0, 1.0, 1.0)
+    end
 end
 
 local function pressed(key)
@@ -322,51 +350,59 @@ function OnUpdate(entity, deltaTime)
         if pressed("Enter") then
             restart()
         end
+        drawHud()
         return
     end
 
     if not piece then
         spawnPiece()
-        return
     end
 
-    if pressed("Left") or pressed("A") then
-        tryMove(-1, 0)
-        moveTimer = moveInterval
-    elseif pressed("Right") or pressed("D") then
-        tryMove(1, 0)
-        moveTimer = moveInterval
-    elseif (KeyDown("Left") or KeyDown("A")) and moveTimer <= 0.0 then
-        tryMove(-1, 0)
-        moveTimer = moveInterval
-    elseif (KeyDown("Right") or KeyDown("D")) and moveTimer <= 0.0 then
-        tryMove(1, 0)
-        moveTimer = moveInterval
-    end
+    if piece then
+        if pressed("Left") or pressed("A") then
+            tryMove(-1, 0)
+            moveTimer = moveInterval
+        elseif pressed("Right") or pressed("D") then
+            tryMove(1, 0)
+            moveTimer = moveInterval
+        elseif (KeyDown("Left") or KeyDown("A")) and moveTimer <= 0.0 then
+            tryMove(-1, 0)
+            moveTimer = moveInterval
+        elseif (KeyDown("Right") or KeyDown("D")) and moveTimer <= 0.0 then
+            tryMove(1, 0)
+            moveTimer = moveInterval
+        end
 
-    if pressed("Up") or pressed("W") then
-        rotatePiece()
-    end
+        if pressed("Up") or pressed("W") then
+            rotatePiece()
+        end
 
-    if pressed("Space") then
-        while tryMove(0, -1) do end
-        lockPiece()
-        return
-    end
-
-    if KeyDown("Down") or KeyDown("S") then
-        dropTimer = dropTimer + deltaTime * 8.0
-    end
-
-    moveTimer = moveTimer - deltaTime
-    dropTimer = dropTimer + deltaTime
-
-    if dropTimer >= dropInterval then
-        dropTimer = 0.0
-        if not tryMove(0, -1) then
+        if pressed("Space") then
+            while tryMove(0, -1) do end
             lockPiece()
+        elseif KeyDown("Down") or KeyDown("S") then
+            dropTimer = dropTimer + deltaTime * 8.0
         end
     end
+
+    if piece then
+        moveTimer = moveTimer - deltaTime
+        dropTimer = dropTimer + deltaTime
+
+        if dropTimer >= dropInterval then
+            dropTimer = 0.0
+            if not tryMove(0, -1) then
+                lockPiece()
+            end
+        end
+    end
+
+    if flash > 0.0 then
+        flash = math.max(0.0, flash - deltaTime)
+        DrawRect(0.0, 0.0, ScreenWidth(), ScreenHeight(), 1.0, 1.0, 1.0, flash * 0.35)
+    end
+
+    drawHud()
 end
 
 function OnDestroy(entity)

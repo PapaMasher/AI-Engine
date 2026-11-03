@@ -115,6 +115,12 @@ json SerializeEntityToJson(const Registry& registry, Entity entity)
     if (entity.HasComponent<SphereColliderComponent>())
         j["sphereCollider"] = { { "radius", entity.GetComponent<SphereColliderComponent>().Radius } };
 
+    if (entity.HasComponent<CapsuleColliderComponent>())
+    {
+        const auto& capsule = entity.GetComponent<CapsuleColliderComponent>();
+        j["capsuleCollider"] = { { "radius", capsule.Radius }, { "halfHeight", capsule.HalfHeight } };
+    }
+
     if (entity.HasComponent<ScriptComponent>())
         j["script"] = { { "path", entity.GetComponent<ScriptComponent>().ScriptPath } };
 
@@ -203,6 +209,13 @@ Entity DeserializeEntityFromJson(Scene& scene, const json& j)
 
     if (j.contains("sphereCollider"))
         entity.AddComponent<SphereColliderComponent>().Radius = j["sphereCollider"].value("radius", 0.5f);
+
+    if (j.contains("capsuleCollider"))
+    {
+        auto& capsule = entity.AddComponent<CapsuleColliderComponent>();
+        capsule.Radius = j["capsuleCollider"].value("radius", 0.4f);
+        capsule.HalfHeight = j["capsuleCollider"].value("halfHeight", 0.6f);
+    }
 
     if (j.contains("script"))
         entity.AddComponent<ScriptComponent>().ScriptPath = j["script"].value("path", "");

@@ -17,10 +17,14 @@ runtime for exported games, and a test suite that exercises every subsystem.
 - **glTF/GLB import** with materials, textures and submeshes.
 - **ECS** with generation-checked entity handles, hierarchy, JSON scenes and
   prefabs.
-- **Physics** — Jolt rigid bodies, box and sphere colliders, raycasts.
+- **Physics** — Box3D rigid bodies, box, sphere and capsule colliders,
+  raycasts, multithreaded simulation.
 - **Lua scripting** — `OnCreate` / `OnUpdate` / `OnDestroy`, entity creation and
-  destruction, physics queries.
-- **Audio** — miniaudio with spatial playback.
+  destruction, transforms and materials, physics bodies and colliders, audio,
+  HUD drawing and input queries.
+- **Audio** — miniaudio with spatial playback, driven from Lua via `PlaySound`.
+- **HUD** — a screen-space quad/text renderer with a built-in font and a small
+  `DrawRect` / `DrawText` API for game UI.
 - **Editor** — ImGui docking UI, hierarchy, inspector, statistics, gizmo-free
   transform editing, free-fly camera.
 - **AI automation** — newline-delimited JSON over TCP to build scenes, take
@@ -113,18 +117,30 @@ Agents can also inject input, which makes games testable end to end:
 See [docs/AUTOMATION_PROTOCOL.md](docs/AUTOMATION_PROTOCOL.md) for the complete
 command set and the skills in `skills/` for worked workflows.
 
-## Sample game
+## Sample games
 
 `Assets/Scenes/SlateBlocks.json` is a playable 3D Tetris written entirely in
 Lua against the engine's scripting API — it spawns blocks, runs its own board
-logic, clears lines and keeps score:
+logic, clears lines, keeps score, previews the next piece and plays sound
+effects:
 
 ```bash
-SLATE_SCENE=Scenes/SlateBlocks.json ./build/bin/Slate-Runtime.exe
+./build/bin/Slate-Runtime.exe Scenes/SlateBlocks.json
 ```
 
 Left/Right or A/D move, Down or S soft drop, Up or W rotate, Space hard drop,
 Enter restarts.
+
+`Assets/Scenes/PhysicsPlayground.json` shows off the Box3D physics layer: it
+builds a five-row pyramid, drops a capsule and spheres onto the ground, and
+lets you spawn boxes that stack, topple and collide:
+
+```bash
+./build/bin/Slate-Runtime.exe Scenes/PhysicsPlayground.json
+```
+
+Space spawns a box, R clears the spawned boxes. Everything — the pyramid, the
+bodies, the colliders — is created from Lua at runtime.
 
 ## Layout
 

@@ -1,4 +1,6 @@
 #include "Slate/Scripting/ScriptEngine.h"
+#include "Slate/Renderer/Renderer.h"
+#include "Slate/Audio/AudioEngine.h"
 #include "Slate/Scene/Scene.h"
 #include "Slate/Physics/PhysicsWorld.h"
 #include "Slate/Platform/Input.h"
@@ -41,6 +43,8 @@ struct ScriptEngine::Impl
     sol::state Lua;
     Scene* ScenePtr = nullptr;
     PhysicsWorld* Physics = nullptr;
+    Renderer* UIRenderer = nullptr;
+    AudioEngine* Audio = nullptr;
     std::vector<Instance> Instances;
     double DeltaTime = 0.0;
 
@@ -57,7 +61,8 @@ struct ScriptEngine::Impl
 ScriptEngine::ScriptEngine() = default;
 ScriptEngine::~ScriptEngine() { Shutdown(); }
 
-void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics)
+void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics, Renderer* renderer,
+    AudioEngine* audio)
 {
     if (m_Impl)
         return;
@@ -65,6 +70,8 @@ void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics)
     m_Impl = MakeScope<Impl>();
     m_Impl->ScenePtr = &scene;
     m_Impl->Physics = physics;
+    m_Impl->UIRenderer = renderer;
+    m_Impl->Audio = audio;
 
     m_Impl->Lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::table);
 
@@ -147,6 +154,39 @@ void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics)
             if (entity.HasComponent<MeshRendererComponent>())
                 entity.GetComponent<MeshRendererComponent>().Visible = visible;
         },
+        "SetRigidBody", [](Entity entity, int type, float mass)
+        {
+            RigidBodyComponent& body = entity.HasComponent<RigidBodyComponent>()
+                ? entity.GetComponent<RigidBodyComponent>()
+                : entity.AddComponent<RigidBodyComponent>();
+
+            body.Type = static_cast<BodyType>(type);
+            body.Mass = mass;
+            body.UseGravity = true;
+        },
+        "SetBoxCollider", [](Entity entity, float hx, float hy, float hz)
+        {
+            BoxColliderComponent& collider = entity.HasComponent<BoxColliderComponent>()
+                ? entity.GetComponent<BoxColliderComponent>()
+                : entity.AddComponent<BoxColliderComponent>();
+            collider.HalfExtents = glm::vec3(hx, hy, hz);
+        },
+        "SetSphereCollider", [](Entity entity, float radius)
+        {
+            SphereColliderComponent& collider = entity.HasComponent<SphereColliderComponent>()
+                ? entity.GetComponent<SphereColliderComponent>()
+                : entity.AddComponent<SphereColliderComponent>();
+            collider.Radius = radius;
+        },
+        "SetCapsuleCollider", [](Entity entity, float radius, float halfHeight)
+        {
+            CapsuleColliderComponent& collider = entity.HasComponent<CapsuleColliderComponent>()
+                ? entity.GetComponent<CapsuleColliderComponent>()
+                : entity.AddComponent<CapsuleColliderComponent>();
+            collider.Radius = radius;
+            collider.HalfHeight = halfHeight;
+        },
+        "HasRigidBody", [](const Entity& entity) { return entity.HasComponent<RigidBodyComponent>(); },
         "Translate", [](Entity entity, float x, float y, float z)
         {
             if (entity.HasComponent<TransformComponent>())
@@ -207,6 +247,43 @@ void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics)
     m_Impl->Lua.set_function("Log", [](const std::string& message)
     {
         SLATE_INFO("[Lua] {}", message);
+    });
+
+    // UI API.
+    m_Impl->Lua.set_function("DrawText", [this](float x, float y, const std::string& text,
+        float size, float r, float g, float b, float a)
+    {
+        if (m_Impl->UIRenderer)
+            m_Impl->UIRenderer->DrawUIText(x, y, text, size, glm::vec4(r, g, b, a));
+    });
+
+    m_Impl->Lua.set_function("DrawRect", [this](float x, float y, float width, float height,
+        float r, float g, float b, float a)
+    {
+        if (m_Impl->UIRenderer)
+            m_Impl->UIRenderer->DrawUIRect(x, y, width, height, glm::vec4(r, g, b, a));
+    });
+
+    m_Impl->Lua.set_function("ScreenWidth", [this]() -> float
+    {
+        return m_Impl->UIRenderer ? m_Impl->UIRenderer->GetViewportSize().x : 0.0f;
+    });
+
+    m_Impl->Lua.set_function("ScreenHeight", [this]() -> float
+    {
+        return m_Impl->UIRenderer ? m_Impl->UIRenderer->GetViewportSize().y : 0.0f;
+    });
+
+    m_Impl->Lua.set_function("PlaySound", [this](const std::string& path, float volume,
+        bool loop, bool spatial)
+    {
+        if (m_Impl->Audio)
+            m_Impl->Audio->PlaySound(path, volume, loop, spatial);
+    });
+
+    m_Impl->Lua.set_function("PhysicsBodyCount", [this]() -> int
+    {
+        return m_Impl->Physics ? static_cast<int>(m_Impl->Physics->GetBodyCount()) : 0;
     });
 
     // Physics API.

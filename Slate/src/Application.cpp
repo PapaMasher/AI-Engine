@@ -14,7 +14,7 @@ Application::Application(const WindowProps& props, bool enableValidation)
     m_Renderer.Init(m_Context);
 
     m_Physics.Init();
-    m_Scripts.Init(m_Scene, &m_Physics);
+    m_Scripts.Init(m_Scene, &m_Physics, &m_Renderer, &m_Audio);
     m_Audio.Init();
 }
 
@@ -118,6 +118,9 @@ void Application::Run()
             continue;
 
         const double deltaTime = m_Timer.GetDeltaTime();
+
+        // UI is immediate-mode: clear last frame's quads before scripts draw.
+        m_Renderer.BeginUIFrame();
 
         OnUpdate(deltaTime);
 

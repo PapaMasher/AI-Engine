@@ -6,8 +6,8 @@
       1.0,
       1.0
     ],
-    "ambientIntensity": 0.25,
-    "exposure": 0.8,
+    "ambientIntensity": 0.2,
+    "exposure": 0.75,
     "hdriPath": "HDRIs/studio_small_03_1k.hdr",
     "showSkybox": false
   },
@@ -70,7 +70,7 @@
           1.0,
           1.0
         ],
-        "intensity": 1.4,
+        "intensity": 1.2,
         "castShadows": true
       }
     },
@@ -100,7 +100,7 @@
           0.8,
           1.0
         ],
-        "intensity": 4.0,
+        "intensity": 1.5,
         "range": 40.0
       }
     },

@@ -162,6 +162,7 @@ void Renderer::Init(VulkanContext& context)
 
     CreatePlaceholderIBL();
     CreatePipelines();
+    CreateUIResources();
 
     Resize(context.GetSwapchainExtent().width, context.GetSwapchainExtent().height);
 }
@@ -193,6 +194,25 @@ void Renderer::Shutdown()
     m_Normals = nullptr;
     m_Depth = nullptr;
     m_HdrColor = nullptr;
+
+    m_UIVertices.clear();
+    m_UIVertexBuffer = nullptr;
+    m_UIFontTexture = nullptr;
+    m_UIBindingSet = nullptr;
+    m_UIPipeline = nullptr;
+    m_UILayout = nullptr;
+
+    m_BloomBindingSets.clear();
+    m_BloomFramebuffers.clear();
+    m_BloomTextures.clear();
+    m_BloomCombineFramebuffer = nullptr;
+    m_HdrBindingSet = nullptr;
+
+    m_BloomCombinePipeline = nullptr;
+    m_BloomUpsamplePipeline = nullptr;
+    m_BloomDownsamplePipeline = nullptr;
+    m_BloomPrefilterPipeline = nullptr;
+    m_BloomLayout = nullptr;
 
     m_BrdfPipeline = nullptr;
     m_PrefilterPipeline = nullptr;
@@ -325,6 +345,13 @@ void Renderer::CreateLayouts()
     nvrhi::BindingLayoutDesc brdf;
     brdf.setVisibility(nvrhi::ShaderType::Pixel);
     m_BrdfLayout = m_Device->createBindingLayout(brdf);
+
+    nvrhi::BindingLayoutDesc bloom;
+    bloom.setVisibility(nvrhi::ShaderType::Pixel);
+    bloom.addItem(nvrhi::BindingLayoutItem::Texture_SRV(0));
+    bloom.addItem(nvrhi::BindingLayoutItem::Sampler(0));
+    bloom.addItem(nvrhi::BindingLayoutItem::PushConstants(0, sizeof(BloomPushConstants)));
+    m_BloomLayout = m_Device->createBindingLayout(bloom);
 }
 
 void Renderer::CreatePlaceholderIBL()
@@ -573,6 +600,48 @@ void Renderer::CreatePipelines()
         brdf.addBindingLayout(m_BrdfLayout);
         m_BrdfPipeline = m_Device->createGraphicsPipeline(brdf, lutInfo);
     }
+
+    // Bloom chain: prefilter, downsample, upsample and additive combine.
+    {
+        const nvrhi::ShaderHandle bloomPrefilterFragment =
+            LoadShader(m_Device, "bloom_prefilter.frag", nvrhi::ShaderType::Pixel);
+        const nvrhi::ShaderHandle bloomDownsampleFragment =
+            LoadShader(m_Device, "bloom_downsample.frag", nvrhi::ShaderType::Pixel);
+        const nvrhi::ShaderHandle bloomUpsampleFragment =
+            LoadShader(m_Device, "bloom_upsample.frag", nvrhi::ShaderType::Pixel);
+        const nvrhi::ShaderHandle bloomCombineFragment =
+            LoadShader(m_Device, "bloom_combine.frag", nvrhi::ShaderType::Pixel);
+
+        const nvrhi::FramebufferInfo bloomInfo =
+            nvrhi::FramebufferInfo().addColorFormat(nvrhi::Format::RGBA16_FLOAT);
+
+        nvrhi::RenderState opaqueState;
+        opaqueState.depthStencilState.setDepthTestEnable(false);
+        opaqueState.depthStencilState.setDepthWriteEnable(false);
+        opaqueState.rasterState.setCullMode(nvrhi::RasterCullMode::None);
+
+        nvrhi::RenderState additiveState = opaqueState;
+        additiveState.blendState.targets[0].enableBlend()
+            .setSrcBlend(nvrhi::BlendFactor::One)
+            .setDestBlend(nvrhi::BlendFactor::One)
+            .setBlendOp(nvrhi::BlendOp::Add);
+
+        auto createBloomPipeline = [&](nvrhi::ShaderHandle fragment, const nvrhi::RenderState& state)
+        {
+            nvrhi::GraphicsPipelineDesc desc;
+            desc.setPrimType(nvrhi::PrimitiveType::TriangleList);
+            desc.setVertexShader(fullscreenVertex);
+            desc.setPixelShader(fragment);
+            desc.setRenderState(state);
+            desc.addBindingLayout(m_BloomLayout);
+            return m_Device->createGraphicsPipeline(desc, bloomInfo);
+        };
+
+        m_BloomPrefilterPipeline = createBloomPipeline(bloomPrefilterFragment, opaqueState);
+        m_BloomDownsamplePipeline = createBloomPipeline(bloomDownsampleFragment, opaqueState);
+        m_BloomUpsamplePipeline = createBloomPipeline(bloomUpsampleFragment, additiveState);
+        m_BloomCombinePipeline = createBloomPipeline(bloomCombineFragment, additiveState);
+    }
 }
 
 void Renderer::CreateTargets(uint32_t width, uint32_t height)
@@ -643,6 +712,49 @@ void Renderer::CreateTargets(uint32_t width, uint32_t height)
         nvrhi::FramebufferDesc().addColorAttachment(m_SSAOBlurred));
     m_ShadowFramebuffer = m_Device->createFramebuffer(
         nvrhi::FramebufferDesc().setDepthAttachment(m_ShadowMap));
+
+    // Bloom mip chain: level 0 is half resolution, each next level halves.
+    m_BloomTextures.clear();
+    m_BloomFramebuffers.clear();
+    m_BloomBindingSets.clear();
+
+    uint32_t bloomWidth = std::max(1u, width / 2);
+    uint32_t bloomHeight = std::max(1u, height / 2);
+
+    for (uint32_t level = 0; level < kBloomMipCount; ++level)
+    {
+        nvrhi::TextureDesc desc;
+        desc.width = bloomWidth;
+        desc.height = bloomHeight;
+        desc.format = nvrhi::Format::RGBA16_FLOAT;
+        desc.isRenderTarget = true;
+        desc.isShaderResource = true;
+        desc.setInitialState(nvrhi::ResourceStates::ShaderResource);
+        desc.setKeepInitialState(true);
+        desc.debugName = "Bloom Level";
+        const nvrhi::TextureHandle texture = m_Device->createTexture(desc);
+        m_BloomTextures.push_back(texture);
+        m_BloomFramebuffers.push_back(
+            m_Device->createFramebuffer(nvrhi::FramebufferDesc().addColorAttachment(texture)));
+
+        nvrhi::BindingSetDesc setDesc;
+        setDesc.addItem(nvrhi::BindingSetItem::Texture_SRV(0, texture));
+        setDesc.addItem(nvrhi::BindingSetItem::Sampler(0, m_LinearClamp));
+        m_BloomBindingSets.push_back(m_Device->createBindingSet(setDesc, m_BloomLayout));
+
+        bloomWidth = std::max(1u, bloomWidth / 2);
+        bloomHeight = std::max(1u, bloomHeight / 2);
+    }
+
+    // The combine pass writes the HDR colour without a depth attachment, so it
+    // needs a framebuffer matching the bloom pipeline format.
+    m_BloomCombineFramebuffer = m_Device->createFramebuffer(
+        nvrhi::FramebufferDesc().addColorAttachment(m_HdrColor));
+
+    nvrhi::BindingSetDesc hdrSetDesc;
+    hdrSetDesc.addItem(nvrhi::BindingSetItem::Texture_SRV(0, m_HdrColor));
+    hdrSetDesc.addItem(nvrhi::BindingSetItem::Sampler(0, m_LinearClamp));
+    m_HdrBindingSet = m_Device->createBindingSet(hdrSetDesc, m_BloomLayout);
 
     m_BindingSetsDirty = true;
 }
@@ -1332,6 +1444,243 @@ void Renderer::DrawOpaque(Scene& scene)
         });
 }
 
+void Renderer::DrawBloom()
+{
+    if (!m_BloomEnabled || m_BloomTextures.empty() || !m_BloomCombineFramebuffer)
+        return;
+
+    BloomPushConstants constants;
+    constants.Threshold = m_BloomThreshold;
+    constants.Knee = 0.6f;
+    constants.Intensity = m_BloomIntensity;
+
+    auto drawFullscreen = [&](nvrhi::GraphicsPipelineHandle pipeline,
+                              nvrhi::FramebufferHandle framebuffer,
+                              nvrhi::BindingSetHandle bindingSet,
+                              uint32_t width, uint32_t height)
+    {
+        const nvrhi::GraphicsState state = nvrhi::GraphicsState()
+            .setPipeline(pipeline)
+            .setFramebuffer(framebuffer)
+            .addBindingSet(bindingSet)
+            .setViewport(nvrhi::ViewportState().addViewportAndScissorRect(
+                nvrhi::Viewport(static_cast<float>(width), static_cast<float>(height))));
+
+        m_CommandList->setGraphicsState(state);
+        m_CommandList->setPushConstants(&constants, sizeof(constants));
+        m_CommandList->draw(nvrhi::DrawArguments().setVertexCount(3));
+    };
+
+    // Extract bright pixels into level 0.
+    const auto& level0 = m_BloomTextures[0]->getDesc();
+    drawFullscreen(m_BloomPrefilterPipeline, m_BloomFramebuffers[0], m_HdrBindingSet,
+        level0.width, level0.height);
+
+    // Build the mip chain.
+    for (uint32_t level = 1; level < m_BloomTextures.size(); ++level)
+    {
+        const auto& desc = m_BloomTextures[level]->getDesc();
+        drawFullscreen(m_BloomDownsamplePipeline, m_BloomFramebuffers[level],
+            m_BloomBindingSets[level - 1], desc.width, desc.height);
+    }
+
+    // Upsample additively back up the chain.
+    for (uint32_t level = static_cast<uint32_t>(m_BloomTextures.size()) - 1; level > 0; --level)
+    {
+        const auto& desc = m_BloomTextures[level - 1]->getDesc();
+        drawFullscreen(m_BloomUpsamplePipeline, m_BloomFramebuffers[level - 1],
+            m_BloomBindingSets[level], desc.width, desc.height);
+    }
+
+    // Add the bloom back into the HDR scene target.
+    drawFullscreen(m_BloomCombinePipeline, m_BloomCombineFramebuffer, m_BloomBindingSets[0],
+        m_Width, m_Height);
+}
+
+
+void Renderer::CreateUIResources()
+{
+    m_Font.LoadFromFile("Fonts/JetBrainsMono-Regular.ttf", 48.0f);
+
+    nvrhi::TextureDesc fontDesc;
+    fontDesc.width = m_Font.GetWidth();
+    fontDesc.height = m_Font.GetHeight();
+    fontDesc.format = nvrhi::Format::RGBA8_UNORM;
+    fontDesc.isShaderResource = true;
+    fontDesc.setInitialState(nvrhi::ResourceStates::ShaderResource);
+    fontDesc.setKeepInitialState(true);
+    fontDesc.debugName = "UI Font Atlas";
+    m_UIFontTexture = m_Device->createTexture(fontDesc);
+
+    m_CommandList->open();
+    m_CommandList->writeTexture(m_UIFontTexture, 0, 0, m_Font.GetPixels().data(),
+        m_Font.GetWidth() * 4);
+    m_CommandList->close();
+    m_Context->ExecuteCommandList(m_CommandList);
+
+    nvrhi::BindingLayoutDesc layout;
+    // The UI vertex shader consumes the screen size push constant.
+    layout.setVisibility(nvrhi::ShaderType::Vertex | nvrhi::ShaderType::Pixel);
+    layout.addItem(nvrhi::BindingLayoutItem::Texture_SRV(0));
+    layout.addItem(nvrhi::BindingLayoutItem::Sampler(0));
+    layout.addItem(nvrhi::BindingLayoutItem::PushConstants(0, sizeof(UIConstants)));
+    m_UILayout = m_Device->createBindingLayout(layout);
+
+    nvrhi::BindingSetDesc setDesc;
+    setDesc.addItem(nvrhi::BindingSetItem::Texture_SRV(0, m_UIFontTexture));
+    setDesc.addItem(nvrhi::BindingSetItem::Sampler(0, m_LinearClamp));
+    m_UIBindingSet = m_Device->createBindingSet(setDesc, m_UILayout);
+
+    const nvrhi::ShaderHandle vertexShader = LoadShader(m_Device, "ui.vert", nvrhi::ShaderType::Vertex);
+    const nvrhi::ShaderHandle pixelShader = LoadShader(m_Device, "ui.frag", nvrhi::ShaderType::Pixel);
+
+    nvrhi::VertexAttributeDesc attributes[3];
+    attributes[0] = nvrhi::VertexAttributeDesc()
+        .setName("POSITION")
+        .setFormat(nvrhi::Format::RG32_FLOAT)
+        .setOffset(offsetof(UIVertex, Position))
+        .setElementStride(sizeof(UIVertex));
+    attributes[1] = nvrhi::VertexAttributeDesc()
+        .setName("TEXCOORD")
+        .setFormat(nvrhi::Format::RG32_FLOAT)
+        .setOffset(offsetof(UIVertex, UV))
+        .setElementStride(sizeof(UIVertex));
+    attributes[2] = nvrhi::VertexAttributeDesc()
+        .setName("COLOR")
+        .setFormat(nvrhi::Format::RGBA32_FLOAT)
+        .setOffset(offsetof(UIVertex, Color))
+        .setElementStride(sizeof(UIVertex));
+
+    nvrhi::RenderState state;
+    state.depthStencilState.setDepthTestEnable(false);
+    state.depthStencilState.setDepthWriteEnable(false);
+    state.rasterState.setCullMode(nvrhi::RasterCullMode::None);
+    state.blendState.targets[0].enableBlend()
+        .setSrcBlend(nvrhi::BlendFactor::SrcAlpha)
+        .setDestBlend(nvrhi::BlendFactor::InvSrcAlpha)
+        .setBlendOp(nvrhi::BlendOp::Add);
+
+    nvrhi::GraphicsPipelineDesc desc;
+    desc.setPrimType(nvrhi::PrimitiveType::TriangleList);
+    desc.setVertexShader(vertexShader);
+    desc.setPixelShader(pixelShader);
+    desc.setInputLayout(m_Device->createInputLayout(attributes, 3, vertexShader));
+    desc.setRenderState(state);
+    desc.addBindingLayout(m_UILayout);
+
+    const nvrhi::FramebufferInfo info =
+        nvrhi::FramebufferInfo().addColorFormat(nvrhi::Format::RGBA16_FLOAT);
+    m_UIPipeline = m_Device->createGraphicsPipeline(desc, info);
+
+    m_UIVertexCapacity = 16384;
+    nvrhi::BufferDesc bufferDesc;
+    bufferDesc.byteSize = m_UIVertexCapacity * sizeof(UIVertex);
+    bufferDesc.isVertexBuffer = true;
+    bufferDesc.setInitialState(nvrhi::ResourceStates::VertexBuffer);
+    bufferDesc.setKeepInitialState(true);
+    bufferDesc.debugName = "UI Vertices";
+    m_UIVertexBuffer = m_Device->createBuffer(bufferDesc);
+}
+
+void Renderer::BeginUIFrame()
+{
+    m_UIVertices.clear();
+}
+
+void Renderer::AddUIQuad(float x, float y, float width, float height,
+    float u0, float v0, float u1, float v1, const glm::vec4& color)
+{
+    const UIVertex topLeft { glm::vec2(x, y), glm::vec2(u0, v0), color };
+    const UIVertex topRight { glm::vec2(x + width, y), glm::vec2(u1, v0), color };
+    const UIVertex bottomRight { glm::vec2(x + width, y + height), glm::vec2(u1, v1), color };
+    const UIVertex bottomLeft { glm::vec2(x, y + height), glm::vec2(u0, v1), color };
+
+    m_UIVertices.push_back(topLeft);
+    m_UIVertices.push_back(topRight);
+    m_UIVertices.push_back(bottomRight);
+    m_UIVertices.push_back(topLeft);
+    m_UIVertices.push_back(bottomRight);
+    m_UIVertices.push_back(bottomLeft);
+}
+
+void Renderer::DrawUIRect(float x, float y, float width, float height, const glm::vec4& color)
+{
+    AddUIQuad(x, y, width, height, m_Font.GetWhiteU(), m_Font.GetWhiteV(),
+        m_Font.GetWhiteU(), m_Font.GetWhiteV(), color);
+}
+
+void Renderer::DrawUIText(float x, float y, std::string_view text, float size,
+    const glm::vec4& color)
+{
+    const float scale = size / m_Font.GetPixelHeight();
+    const float lineHeight = m_Font.GetLineHeight() * scale;
+
+    float penX = x;
+    float baseline = y + m_Font.GetAscent() * scale;
+
+    for (const char character : text)
+    {
+        if (character == '\n')
+        {
+            penX = x;
+            baseline += lineHeight;
+            continue;
+        }
+
+        const FontAtlas::Glyph* glyph = m_Font.GetGlyph(character);
+        if (!glyph)
+            continue;
+
+        if (glyph->Width > 0.0f && glyph->Height > 0.0f)
+        {
+            AddUIQuad(penX + glyph->XOffset * scale,
+                baseline + glyph->YOffset * scale,
+                glyph->Width * scale,
+                glyph->Height * scale,
+                glyph->U0, glyph->V0, glyph->U1, glyph->V1, color);
+        }
+
+        penX += glyph->XAdvance * scale;
+    }
+}
+
+void Renderer::DrawUI()
+{
+    if (m_UIVertices.empty() || !m_UIPipeline || !m_BloomCombineFramebuffer)
+        return;
+
+    if (m_UIVertices.size() > m_UIVertexCapacity)
+    {
+        m_UIVertexCapacity = static_cast<uint32_t>(m_UIVertices.size() * 2);
+        nvrhi::BufferDesc bufferDesc;
+        bufferDesc.byteSize = m_UIVertexCapacity * sizeof(UIVertex);
+        bufferDesc.isVertexBuffer = true;
+        bufferDesc.setInitialState(nvrhi::ResourceStates::VertexBuffer);
+        bufferDesc.setKeepInitialState(true);
+        bufferDesc.debugName = "UI Vertices";
+        m_UIVertexBuffer = m_Device->createBuffer(bufferDesc);
+    }
+
+    m_CommandList->writeBuffer(m_UIVertexBuffer, m_UIVertices.data(),
+        m_UIVertices.size() * sizeof(UIVertex));
+
+    UIConstants constants;
+    constants.ScreenSize = GetViewportSize();
+
+    const nvrhi::GraphicsState state = nvrhi::GraphicsState()
+        .setPipeline(m_UIPipeline)
+        .setFramebuffer(m_BloomCombineFramebuffer)
+        .addBindingSet(m_UIBindingSet)
+        .addVertexBuffer(nvrhi::VertexBufferBinding().setBuffer(m_UIVertexBuffer).setSlot(0).setOffset(0))
+        .setViewport(nvrhi::ViewportState().addViewportAndScissorRect(
+            nvrhi::Viewport(static_cast<float>(m_Width), static_cast<float>(m_Height))));
+
+    m_CommandList->setGraphicsState(state);
+    m_CommandList->setPushConstants(&constants, sizeof(constants));
+    m_CommandList->draw(nvrhi::DrawArguments().setVertexCount(
+        static_cast<uint32_t>(m_UIVertices.size())));
+}
+
 void Renderer::Render(Scene& scene)
 {
     if (!m_CommandList || !m_HdrColor)
@@ -1381,6 +1730,8 @@ void Renderer::Render(Scene& scene)
         DrawSkybox();
 
     DrawOpaque(scene);
+    DrawBloom();
+    DrawUI();
 
     m_CommandList->close();
     m_Context->ExecuteCommandList(m_CommandList);

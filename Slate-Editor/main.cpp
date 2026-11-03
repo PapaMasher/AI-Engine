@@ -173,6 +173,11 @@ private:
 
     void DrawHierarchy()
     {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->WorkPos.x + 10.0f, viewport->WorkPos.y + 34.0f),
+            ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(320.0f, 420.0f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Hierarchy");
 
         if (ImGui::Button("Create Entity"))
@@ -200,6 +205,11 @@ private:
 
     void DrawInspector()
     {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 360.0f, viewport->WorkPos.y + 34.0f),
+            ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(350.0f, 520.0f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Inspector");
 
         if (!m_Selected.IsValid())
@@ -309,6 +319,15 @@ private:
             ImGui::Separator();
         }
 
+        if (m_Selected.HasComponent<CapsuleColliderComponent>())
+        {
+            auto& collider = m_Selected.GetComponent<CapsuleColliderComponent>();
+            ImGui::Text("Capsule Collider");
+            ImGui::DragFloat("Radius", &collider.Radius, 0.01f, 0.001f, 100.0f);
+            ImGui::DragFloat("Half Height", &collider.HalfHeight, 0.01f, 0.001f, 100.0f);
+            ImGui::Separator();
+        }
+
         if (m_Selected.HasComponent<ScriptComponent>())
         {
             auto& script = m_Selected.GetComponent<ScriptComponent>();
@@ -354,6 +373,8 @@ private:
                 m_Selected.AddComponent<BoxColliderComponent>();
             if (!m_Selected.HasComponent<SphereColliderComponent>() && ImGui::MenuItem("Sphere Collider"))
                 m_Selected.AddComponent<SphereColliderComponent>();
+            if (!m_Selected.HasComponent<CapsuleColliderComponent>() && ImGui::MenuItem("Capsule Collider"))
+                m_Selected.AddComponent<CapsuleColliderComponent>();
             if (!m_Selected.HasComponent<ScriptComponent>() && ImGui::MenuItem("Script"))
                 m_Selected.AddComponent<ScriptComponent>();
             if (!m_Selected.HasComponent<AudioSourceComponent>() && ImGui::MenuItem("Audio Source"))
@@ -402,21 +423,38 @@ private:
             IM_COL32(80, 130, 255, 255) };
         const char* labels[3] = { "X", "Y", "Z" };
 
+        // Keep the gizmo a constant, comfortable size on screen regardless of
+        // camera distance: find how many pixels one world unit spans and scale
+        // the handles so they are roughly 90 pixels long.
+        float maxProjectedLength = 1.0f;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            ImVec2 unitHandle;
+            if (!project(position + axes[axis], unitHandle))
+                continue;
+
+            const float dx = unitHandle.x - originScreen.x;
+            const float dy = unitHandle.y - originScreen.y;
+            maxProjectedLength = std::max(maxProjectedLength, std::sqrt(dx * dx + dy * dy));
+        }
+
+        const float gizmoScale = 90.0f / maxProjectedLength;
+
         ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-        drawList->AddCircleFilled(originScreen, 4.0f, IM_COL32(255, 255, 255, 200));
+        drawList->AddCircleFilled(originScreen, 5.0f, IM_COL32(255, 255, 255, 220));
 
         ImVec2 handles[3];
         bool handleValid[3] = { false, false, false };
 
         for (int axis = 0; axis < 3; ++axis)
         {
-            handleValid[axis] = project(position + axes[axis], handles[axis]);
+            handleValid[axis] = project(position + axes[axis] * gizmoScale, handles[axis]);
             if (!handleValid[axis])
                 continue;
 
-            drawList->AddLine(originScreen, handles[axis], colors[axis], 2.5f);
-            drawList->AddCircleFilled(handles[axis], 6.0f, colors[axis]);
-            drawList->AddText(ImVec2(handles[axis].x + 9.0f, handles[axis].y - 8.0f),
+            drawList->AddLine(originScreen, handles[axis], colors[axis], 3.0f);
+            drawList->AddCircleFilled(handles[axis], 7.0f, colors[axis]);
+            drawList->AddText(ImVec2(handles[axis].x + 10.0f, handles[axis].y - 9.0f),
                 colors[axis], labels[axis]);
         }
 
@@ -431,13 +469,14 @@ private:
 
                 const float dx = mouse.x - handles[axis].x;
                 const float dy = mouse.y - handles[axis].y;
-                if (dx * dx + dy * dy > 100.0f)
+                if (dx * dx + dy * dy > 169.0f)
                     continue;
 
                 m_GizmoAxis = axis;
                 m_GizmoDragging = true;
                 m_GizmoStartMouse = mouse;
                 m_GizmoStartTranslation = transform.Translation;
+                m_GizmoScale = gizmoScale;
                 m_GizmoScreenAxis = ImVec2(handles[axis].x - originScreen.x,
                     handles[axis].y - originScreen.y);
                 break;
@@ -460,7 +499,7 @@ private:
 
         const ImVec2 delta(mouse.x - m_GizmoStartMouse.x, mouse.y - m_GizmoStartMouse.y);
         const float amount = (delta.x * m_GizmoScreenAxis.x + delta.y * m_GizmoScreenAxis.y)
-            / lengthSquared;
+            / lengthSquared * m_GizmoScale;
 
         glm::vec3 direction(0.0f);
         direction[m_GizmoAxis] = 1.0f;
@@ -469,6 +508,12 @@ private:
 
     void DrawStatistics()
     {
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 360.0f,
+                viewport->WorkPos.y + viewport->WorkSize.y - 300.0f),
+            ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(350.0f, 280.0f), ImGuiCond_FirstUseEver);
         ImGui::Begin("Statistics");
 
         const auto& stats = GetRenderer().GetStatistics();
@@ -485,6 +530,19 @@ private:
         ImGui::Text("Script instances: %zu", GetScripts().GetInstanceCount());
         ImGui::Text("Active sounds: %zu", GetAudio().GetActiveSoundCount());
         ImGui::Text("Playing: %s", IsPlaying() ? "yes" : "no");
+        ImGui::Separator();
+
+        bool bloomEnabled = GetRenderer().IsBloomEnabled();
+        if (ImGui::Checkbox("Bloom", &bloomEnabled))
+            GetRenderer().SetBloomEnabled(bloomEnabled);
+
+        float bloomThreshold = GetRenderer().GetBloomThreshold();
+        if (ImGui::DragFloat("Bloom Threshold", &bloomThreshold, 0.02f, 0.0f, 8.0f))
+            GetRenderer().SetBloomThreshold(bloomThreshold);
+
+        float bloomIntensity = GetRenderer().GetBloomIntensity();
+        if (ImGui::DragFloat("Bloom Intensity", &bloomIntensity, 0.005f, 0.0f, 1.0f))
+            GetRenderer().SetBloomIntensity(bloomIntensity);
 
         ImGui::End();
 
@@ -704,6 +762,12 @@ private:
             }
             else if (component == "spherecollider" && !entity.HasComponent<SphereColliderComponent>())
                 entity.AddComponent<SphereColliderComponent>().Radius = request.value("radius", 0.5f);
+            else if (component == "capsulecollider" && !entity.HasComponent<CapsuleColliderComponent>())
+            {
+                auto& capsule = entity.AddComponent<CapsuleColliderComponent>();
+                capsule.Radius = request.value("radius", 0.4f);
+                capsule.HalfHeight = request.value("halfHeight", 0.6f);
+            }
             else if (component == "script" && !entity.HasComponent<ScriptComponent>())
                 entity.AddComponent<ScriptComponent>().ScriptPath = request.value("path", "");
             else if (component == "audio" && !entity.HasComponent<AudioSourceComponent>())
@@ -809,6 +873,7 @@ private:
     int m_GizmoAxis = 0;
     ImVec2 m_GizmoStartMouse { 0.0f, 0.0f };
     ImVec2 m_GizmoScreenAxis { 0.0f, 0.0f };
+    float m_GizmoScale = 1.0f;
     glm::vec3 m_GizmoStartTranslation { 0.0f };
     AutomationServer m_Automation;
 };

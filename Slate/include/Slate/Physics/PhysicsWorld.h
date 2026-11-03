@@ -7,9 +7,10 @@
 
 namespace Slate {
 
-// Jolt-based rigid body physics. Bodies are created from entities that have a
-// RigidBodyComponent plus a box or sphere collider. Dynamic bodies write their
-// transforms back into the scene after each step.
+// Box3D-based rigid body physics (the 3D successor to Box2D v3). Bodies are
+// created from entities that have a RigidBodyComponent plus a box, sphere or
+// capsule collider. Dynamic bodies write their transforms back into the scene
+// after each step.
 class PhysicsWorld
 {
 public:

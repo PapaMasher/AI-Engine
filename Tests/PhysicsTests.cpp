@@ -36,6 +36,38 @@ TEST_CASE("Physics world creates bodies for rigid body entities")
     physics.Shutdown();
 }
 
+TEST_CASE("Capsule bodies collide with the ground")
+{
+    PhysicsWorld physics;
+    physics.Init();
+
+    Scene scene("Capsule");
+
+    Entity ground = scene.CreateEntity("Ground");
+    ground.AddComponent<RigidBodyComponent>().Type = BodyType::Static;
+    ground.AddComponent<BoxColliderComponent>().HalfExtents = glm::vec3(10.0f, 0.5f, 10.0f);
+
+    Entity capsule = scene.CreateEntity("Capsule");
+    capsule.GetComponent<TransformComponent>().Translation = glm::vec3(0.0f, 6.0f, 0.0f);
+    capsule.AddComponent<RigidBodyComponent>().Type = BodyType::Dynamic;
+    auto& collider = capsule.AddComponent<CapsuleColliderComponent>();
+    collider.Radius = 0.4f;
+    collider.HalfHeight = 0.6f;
+
+    physics.Step(scene, 0.0);
+    CHECK(physics.GetBodyCount() == 2);
+
+    for (int i = 0; i < 180; ++i)
+        physics.Step(scene, 1.0 / 60.0);
+
+    // Capsule rests on the ground: half height + radius above the surface.
+    const float restY = capsule.GetComponent<TransformComponent>().Translation.y;
+    CHECK(restY > 0.4f);
+    CHECK(restY < 2.0f);
+
+    physics.Shutdown();
+}
+
 TEST_CASE("Physics raycast hits the ground")
 {
     PhysicsWorld physics;

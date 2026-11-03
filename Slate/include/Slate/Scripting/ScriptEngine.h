@@ -6,6 +6,8 @@ namespace Slate {
 
 class Scene;
 class PhysicsWorld;
+class Renderer;
+class AudioEngine;
 
 // Lua scripting runtime. Each entity with a ScriptComponent gets its own Lua
 // environment, so scripts can keep per-entity state. Scripts implement
@@ -19,7 +21,8 @@ public:
     ScriptEngine(const ScriptEngine&) = delete;
     ScriptEngine& operator=(const ScriptEngine&) = delete;
 
-    void Init(Scene& scene, PhysicsWorld* physics);
+    void Init(Scene& scene, PhysicsWorld* physics, Renderer* renderer = nullptr,
+        AudioEngine* audio = nullptr);
     void Shutdown();
     bool IsInitialized() const { return m_Impl != nullptr; }
 

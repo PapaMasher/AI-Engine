@@ -4,8 +4,11 @@
 #include "Slate/Platform/VulkanContext.h"
 #include "Slate/Assets/AssetManager.h"
 #include "Slate/Scene/Scene.h"
+#include "Slate/Renderer/FontAtlas.h"
 
 #include <nvrhi/nvrhi.h>
+
+#include <string_view>
 #include <glm/glm.hpp>
 
 #include <unordered_map>
@@ -44,6 +47,30 @@ struct ObjectPushConstants
     glm::vec4 Emissive { 0.0f };
 };
 
+// Bloom pass parameters shared by the prefilter, downsample, upsample and
+// combine shaders.
+struct BloomPushConstants
+{
+    float Threshold = 1.0f;
+    float Knee = 0.6f;
+    float Intensity = 0.12f;
+    float Padding = 0.0f;
+};
+
+// Screen-space UI vertex: pixel position, atlas UV, linear colour.
+struct UIVertex
+{
+    glm::vec2 Position { 0.0f };
+    glm::vec2 UV { 0.0f };
+    glm::vec4 Color { 1.0f };
+};
+
+struct UIConstants
+{
+    glm::vec2 ScreenSize { 0.0f };
+    glm::vec2 Padding { 0.0f };
+};
+
 class Renderer
 {
 public:
@@ -69,6 +96,22 @@ public:
     const Statistics& GetStatistics() const { return m_Statistics; }
     bool IsIBLReady() const { return m_IBLReady; }
 
+    // Bloom controls. Threshold is in HDR luminance; intensity scales the
+    // additive contribution.
+    void SetBloomEnabled(bool enabled) { m_BloomEnabled = enabled; }
+    void SetBloomThreshold(float threshold) { m_BloomThreshold = threshold; }
+    void SetBloomIntensity(float intensity) { m_BloomIntensity = intensity; }
+    bool IsBloomEnabled() const { return m_BloomEnabled; }
+    float GetBloomThreshold() const { return m_BloomThreshold; }
+    float GetBloomIntensity() const { return m_BloomIntensity; }
+
+    // Immediate-mode UI drawn after bloom, before tonemapping. Cleared by
+    // BeginUIFrame() each frame; scripts call the draw functions during update.
+    void BeginUIFrame();
+    void DrawUIText(float x, float y, std::string_view text, float size, const glm::vec4& color);
+    void DrawUIRect(float x, float y, float width, float height, const glm::vec4& color);
+    glm::vec2 GetViewportSize() const { return glm::vec2(static_cast<float>(m_Width), static_cast<float>(m_Height)); }
+
     // Queues an HDR panorama for IBL generation on the next frame.
     void SetEnvironment(Ref<TextureData> hdr);
 
@@ -89,6 +132,10 @@ private:
 
     void CreateSamplers();
     void CreateLayouts();
+    void CreateUIResources();
+    void DrawUI();
+    void AddUIQuad(float x, float y, float width, float height,
+        float u0, float v0, float u1, float v1, const glm::vec4& color);
     void CreatePipelines();
     void CreateTargets(uint32_t width, uint32_t height);
     void CreatePlaceholderIBL();
@@ -105,6 +152,7 @@ private:
     void DrawSSAO();
     void DrawSkybox();
     void DrawOpaque(Scene& scene);
+    void DrawBloom();
 
     void ComputeFrameConstants(Scene& scene, const CameraData& camera);
     void ComputeLightMatrices(Scene& scene);
@@ -134,6 +182,7 @@ private:
     nvrhi::BindingLayoutHandle m_IrradianceLayout;
     nvrhi::BindingLayoutHandle m_PrefilterLayout;
     nvrhi::BindingLayoutHandle m_BrdfLayout;
+    nvrhi::BindingLayoutHandle m_BloomLayout;
 
     nvrhi::GraphicsPipelineHandle m_ShadowPipeline;
     nvrhi::GraphicsPipelineHandle m_PrepassPipeline;
@@ -145,6 +194,10 @@ private:
     nvrhi::GraphicsPipelineHandle m_IrradiancePipeline;
     nvrhi::GraphicsPipelineHandle m_PrefilterPipeline;
     nvrhi::GraphicsPipelineHandle m_BrdfPipeline;
+    nvrhi::GraphicsPipelineHandle m_BloomPrefilterPipeline;
+    nvrhi::GraphicsPipelineHandle m_BloomDownsamplePipeline;
+    nvrhi::GraphicsPipelineHandle m_BloomUpsamplePipeline;
+    nvrhi::GraphicsPipelineHandle m_BloomCombinePipeline;
 
     nvrhi::TextureHandle m_HdrColor;
     nvrhi::TextureHandle m_Depth;
@@ -162,6 +215,27 @@ private:
     nvrhi::TextureHandle m_DefaultWhite;
     nvrhi::TextureHandle m_DefaultNormal;
     nvrhi::TextureHandle m_DefaultBlack;
+
+    // Bloom mip chain (level 0 is half resolution, each next level halves).
+    static constexpr uint32_t kBloomMipCount = 5;
+    std::vector<nvrhi::TextureHandle> m_BloomTextures;
+    std::vector<nvrhi::FramebufferHandle> m_BloomFramebuffers;
+    std::vector<nvrhi::BindingSetHandle> m_BloomBindingSets;
+    nvrhi::FramebufferHandle m_BloomCombineFramebuffer;
+    nvrhi::BindingSetHandle m_HdrBindingSet;
+
+    // UI overlay resources.
+    FontAtlas m_Font;
+    nvrhi::BindingLayoutHandle m_UILayout;
+    nvrhi::GraphicsPipelineHandle m_UIPipeline;
+    nvrhi::BindingSetHandle m_UIBindingSet;
+    nvrhi::TextureHandle m_UIFontTexture;
+    nvrhi::BufferHandle m_UIVertexBuffer;
+    uint32_t m_UIVertexCapacity = 0;
+    std::vector<UIVertex> m_UIVertices;
+    float m_BloomThreshold = 1.6f;
+    float m_BloomIntensity = 0.06f;
+    bool m_BloomEnabled = true;
 
     // IBL resources.
     nvrhi::TextureHandle m_EnvironmentCube;

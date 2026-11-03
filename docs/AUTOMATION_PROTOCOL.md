@@ -64,7 +64,7 @@ against `TagComponent::Name`; the first match wins.
 - `pointlight`
 - `rigidbody` — `type` (0 static, 1 dynamic, 2 kinematic), `mass`
 - `boxcollider` — `halfExtents: [x, y, z]`
-- `spherecollider` — `radius`
+- `spherecollider`, `capsulecollider` — `radius`
 - `script` — `path`
 - `audio` — `clip`
 

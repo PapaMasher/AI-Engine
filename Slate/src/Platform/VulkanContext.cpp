@@ -12,6 +12,7 @@
 #include <imgui_impl_vulkan.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <cstring>
 #include <set>
 
@@ -923,6 +924,45 @@ void VulkanContext::InitImGui()
     io.IniFilename = nullptr;
 
     ImGui::StyleColorsDark();
+
+    // A readable monospace font and a restrained dark theme.
+    const std::filesystem::path fontPath =
+        FileSystem::GetAssetRoot() / "Fonts" / "JetBrainsMono-Regular.ttf";
+    if (std::filesystem::exists(fontPath))
+    {
+        ImFontConfig fontConfig;
+        fontConfig.OversampleH = 2;
+        fontConfig.OversampleV = 1;
+        io.Fonts->AddFontFromFileTTF(fontPath.string().c_str(), 17.0f, &fontConfig);
+    }
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 5.0f;
+    style.ChildRounding = 4.0f;
+    style.FrameRounding = 3.0f;
+    style.PopupRounding = 4.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding = 3.0f;
+    style.TabRounding = 4.0f;
+    style.WindowPadding = ImVec2(10.0f, 10.0f);
+    style.FramePadding = ImVec2(8.0f, 4.0f);
+    style.ItemSpacing = ImVec2(8.0f, 6.0f);
+    style.WindowBorderSize = 1.0f;
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4(0.08f, 0.09f, 0.11f, 0.97f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.10f, 0.12f, 0.16f, 1.00f);
+    colors[ImGuiCol_Header] = ImVec4(0.18f, 0.32f, 0.55f, 1.00f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.22f, 0.40f, 0.66f, 1.00f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.26f, 0.46f, 0.74f, 1.00f);
+    colors[ImGuiCol_Button] = ImVec4(0.16f, 0.20f, 0.26f, 1.00f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.22f, 0.30f, 0.40f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.28f, 0.40f, 0.54f, 1.00f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.12f, 0.14f, 0.18f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.16f, 0.19f, 0.24f, 1.00f);
+    colors[ImGuiCol_Separator] = ImVec4(0.20f, 0.24f, 0.30f, 1.00f);
+    colors[ImGuiCol_Text] = ImVec4(0.90f, 0.92f, 0.95f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.54f, 0.60f, 1.00f);
 
     ImGui_ImplGlfw_InitForVulkan(m_Window.GetNativeWindow(), true);
 

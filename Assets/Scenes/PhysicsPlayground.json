@@ -1,0 +1,178 @@
+{
+  "name": "PhysicsPlayground",
+  "environment": {
+    "ambientColor": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "ambientIntensity": 0.15,
+    "exposure": 0.75,
+    "hdriPath": "HDRIs/studio_small_03_1k.hdr",
+    "showSkybox": false
+  },
+  "entities": [
+    {
+      "uuid": "7000000000000001",
+      "name": "Main Camera",
+      "transform": {
+        "translation": [
+          0.0,
+          7.0,
+          16.0
+        ],
+        "rotation": [
+          -14.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "camera": {
+        "fieldOfView": 50.0,
+        "nearClip": 0.1,
+        "farClip": 200.0,
+        "primary": true
+      }
+    },
+    {
+      "uuid": "7000000000000002",
+      "name": "Sun",
+      "transform": {
+        "translation": [
+          0.0,
+          10.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "directionalLight": {
+        "direction": [
+          -0.4,
+          -1.0,
+          -0.3
+        ],
+        "color": [
+          1.0,
+          0.96,
+          0.9
+        ],
+        "intensity": 3.2,
+        "castShadows": true
+      }
+    },
+    {
+      "uuid": "7000000000000003",
+      "name": "Fill Light",
+      "transform": {
+        "translation": [
+          0.0,
+          9.0,
+          8.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "pointLight": {
+        "color": [
+          0.8,
+          0.85,
+          1.0
+        ],
+        "intensity": 1.0,
+        "range": 30.0
+      }
+    },
+    {
+      "uuid": "7000000000000004",
+      "name": "Ground",
+      "transform": {
+        "translation": [
+          0.0,
+          -0.5,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          30.0,
+          1.0,
+          30.0
+        ]
+      },
+      "meshRenderer": {
+        "model": "Models/Cube.glb",
+        "tint": [
+          0.16,
+          0.18,
+          0.22,
+          1.0
+        ],
+        "visible": true,
+        "castShadows": false
+      },
+      "rigidBody": {
+        "type": 0,
+        "mass": 0.0,
+        "friction": 0.7,
+        "restitution": 0.0,
+        "useGravity": false
+      },
+      "boxCollider": {
+        "halfExtents": [
+          15.0,
+          0.5,
+          15.0
+        ]
+      }
+    },
+    {
+      "uuid": "7000000000000005",
+      "name": "Game",
+      "transform": {
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "script": {
+        "path": "Scripts/PhysicsDemo.lua"
+      }
+    }
+  ]
+}
