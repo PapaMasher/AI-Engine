@@ -25,8 +25,8 @@ runtime for exported games, and a test suite that exercises every subsystem.
 - **Audio** — miniaudio with spatial playback, driven from Lua via `PlaySound`.
 - **HUD** — a screen-space quad/text renderer with a built-in font and a small
   `DrawRect` / `DrawText` API for game UI.
-- **Editor** — ImGui docking UI, hierarchy, inspector, statistics, gizmo-free
-  transform editing, free-fly camera.
+- **Editor** — ImGui docking UI, hierarchy, inspector, statistics, a scaled
+  translate gizmo, undo/redo, bloom controls and a free-fly camera.
 - **AI automation** — newline-delimited JSON over TCP to build scenes, take
   screenshots, play, export and quit.
 - **Export** — one command produces a self-contained game folder.

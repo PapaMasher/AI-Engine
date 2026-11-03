@@ -75,6 +75,9 @@ protected:
     {
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
+        TrackUndo();
+        HandleUndoShortcuts();
+
         DrawMenuBar();
         DrawHierarchy();
         DrawInspector();
@@ -83,6 +86,76 @@ protected:
     }
 
 private:
+    // Captures the scene before a mouse interaction and stores the previous
+    // state if the interaction changed anything. One snapshot per click keeps
+    // undo cheap while still covering gizmo drags, inspector edits and menus.
+    void TrackUndo()
+    {
+        if (IsPlaying())
+        {
+            m_PendingUndoValid = false;
+            return;
+        }
+
+        const ImGuiIO& io = ImGui::GetIO();
+        if (!io.WantTextInput && ImGui::IsMouseClicked(0))
+        {
+            m_PendingUndo = GetScene().Serialize();
+            m_PendingUndoValid = true;
+        }
+
+        if (m_PendingUndoValid && ImGui::IsMouseReleased(0))
+        {
+            m_PendingUndoValid = false;
+
+            if (GetScene().Serialize() != m_PendingUndo)
+            {
+                m_UndoStack.push_back(std::move(m_PendingUndo));
+                if (m_UndoStack.size() > 64)
+                    m_UndoStack.erase(m_UndoStack.begin());
+                m_RedoStack.clear();
+            }
+        }
+    }
+
+    void HandleUndoShortcuts()
+    {
+        const ImGuiIO& io = ImGui::GetIO();
+        if (io.WantTextInput || IsPlaying())
+            return;
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
+            Undo();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false))
+            Redo();
+    }
+
+    void Undo()
+    {
+        if (m_UndoStack.empty())
+            return;
+
+        m_RedoStack.push_back(GetScene().Serialize());
+        const std::string snapshot = m_UndoStack.back();
+        m_UndoStack.pop_back();
+
+        GetScene().Deserialize(snapshot, "undo");
+        m_Selected = Entity();
+    }
+
+    void Redo()
+    {
+        if (m_RedoStack.empty())
+            return;
+
+        m_UndoStack.push_back(GetScene().Serialize());
+        const std::string snapshot = m_RedoStack.back();
+        m_RedoStack.pop_back();
+
+        GetScene().Deserialize(snapshot, "redo");
+        m_Selected = Entity();
+    }
+
     void DrawMenuBar()
     {
         if (!ImGui::BeginMainMenuBar())
@@ -116,6 +189,15 @@ private:
             ImGui::Separator();
             if (ImGui::MenuItem("Exit"))
                 Close();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Edit"))
+        {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z", false, !m_UndoStack.empty() && !IsPlaying()))
+                Undo();
+            if (ImGui::MenuItem("Redo", "Ctrl+Y", false, !m_RedoStack.empty() && !IsPlaying()))
+                Redo();
             ImGui::EndMenu();
         }
 
@@ -680,8 +762,28 @@ private:
             return response;
         }
 
+        auto pushUndo = [this]()
+        {
+            m_UndoStack.push_back(GetScene().Serialize());
+            if (m_UndoStack.size() > 64)
+                m_UndoStack.erase(m_UndoStack.begin());
+            m_RedoStack.clear();
+        };
+
+        if (command == "undo" || command == "redo")
+        {
+            if (command == "undo")
+                Undo();
+            else
+                Redo();
+            response["canUndo"] = !m_UndoStack.empty();
+            response["canRedo"] = !m_RedoStack.empty();
+            return response;
+        }
+
         if (command == "create_entity")
         {
+            pushUndo();
             const std::string name = request.value("name", "Entity");
             Entity entity = GetScene().CreateEntity(name);
             m_Selected = entity;
@@ -695,6 +797,7 @@ private:
         {
             if (!entity.IsValid())
                 return { { "ok", false }, { "error", "entity not found" } };
+            pushUndo();
             GetScene().DestroyEntity(entity);
             m_Selected = Entity();
             return response;
@@ -703,13 +806,15 @@ private:
         const bool needsEntity = command != "load_scene" && command != "save_scene"
             && command != "screenshot" && command != "play" && command != "stop"
             && command != "export" && command != "quit"
-            && command != "key" && command != "mouse" && command != "clear_input";
+            && command != "key" && command != "mouse" && command != "clear_input"
+            && command != "undo" && command != "redo";
 
         if (needsEntity && !entity.IsValid())
             return { { "ok", false }, { "error", "entity not found" } };
 
         if (command == "set_transform")
         {
+            pushUndo();
             auto& transform = entity.GetComponent<TransformComponent>();
             if (request.contains("translation"))
                 transform.Translation = ReadVec3(request["translation"], transform.Translation);
@@ -739,6 +844,7 @@ private:
 
         if (command == "add_component")
         {
+            pushUndo();
             const std::string component = request.value("component", "");
             if (component == "meshrenderer" && !entity.HasComponent<MeshRendererComponent>())
                 entity.AddComponent<MeshRendererComponent>();
@@ -874,6 +980,11 @@ private:
     ImVec2 m_GizmoStartMouse { 0.0f, 0.0f };
     ImVec2 m_GizmoScreenAxis { 0.0f, 0.0f };
     float m_GizmoScale = 1.0f;
+
+    std::vector<std::string> m_UndoStack;
+    std::vector<std::string> m_RedoStack;
+    std::string m_PendingUndo;
+    bool m_PendingUndoValid = false;
     glm::vec3 m_GizmoStartTranslation { 0.0f };
     AutomationServer m_Automation;
 };

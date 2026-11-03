@@ -114,3 +114,82 @@ TEST_CASE("Lua scripts can create entities")
 
     std::filesystem::remove(scriptPath);
 }
+
+TEST_CASE("Lua can attach physics bodies and colliders")
+{
+    const auto scriptPath = std::filesystem::temp_directory_path() / "slate_physics_script.lua";
+    {
+        std::ofstream stream(scriptPath);
+        stream << "function OnCreate(entity)\n"
+                  "  local crate = CreateEntity('Crate')\n"
+                  "  crate:SetMesh('Models/Cube.glb')\n"
+                  "  crate:SetPosition(0.0, 4.0, 0.0)\n"
+                  "  crate:SetRigidBody(1, 2.0)\n"
+                  "  crate:SetBoxCollider(0.5, 0.5, 0.5)\n"
+                  "  Log('bodies=' .. PhysicsBodyCount())\n"
+                  "end\n";
+    }
+
+    Scene scene("LuaPhysics");
+    Entity entity = scene.CreateEntity("Spawner");
+    entity.AddComponent<ScriptComponent>().ScriptPath = scriptPath.string();
+
+    PhysicsWorld physics;
+    physics.Init();
+
+    ScriptEngine scripts;
+    scripts.Init(scene, &physics);
+    scripts.Start();
+
+    REQUIRE(scene.GetEntityCount() == 2);
+
+    physics.Step(scene, 1.0 / 60.0);
+    CHECK(physics.GetBodyCount() == 1);
+
+    Entity crate;
+    scene.GetRegistry().Each<TagComponent>([&](Entity candidate, TagComponent& tag)
+    {
+        if (tag.Name == "Crate")
+            crate = candidate;
+    });
+    REQUIRE(crate.IsValid());
+    CHECK(crate.HasComponent<RigidBodyComponent>());
+    CHECK(crate.GetComponent<RigidBodyComponent>().Type == BodyType::Dynamic);
+    REQUIRE(crate.HasComponent<BoxColliderComponent>());
+    CHECK(crate.GetComponent<BoxColliderComponent>().HalfExtents.x == doctest::Approx(0.5f));
+
+    scripts.Stop();
+    scripts.Shutdown();
+    physics.Shutdown();
+
+    std::filesystem::remove(scriptPath);
+}
+
+TEST_CASE("PlaySound is safe without an audio device")
+{
+    const auto scriptPath = std::filesystem::temp_directory_path() / "slate_audio_script.lua";
+    {
+        std::ofstream stream(scriptPath);
+        stream << "function OnCreate(entity)\n"
+                  "  PlaySound('Audio/beep.wav', 0.5, false, false)\n"
+                  "end\n";
+    }
+
+    Scene scene("LuaAudio");
+    Entity entity = scene.CreateEntity("Speaker");
+    entity.AddComponent<ScriptComponent>().ScriptPath = scriptPath.string();
+
+    PhysicsWorld physics;
+    physics.Init();
+
+    ScriptEngine scripts;
+    scripts.Init(scene, &physics, nullptr, nullptr);
+    scripts.Start();
+    CHECK(scripts.GetInstanceCount() == 1);
+
+    scripts.Stop();
+    scripts.Shutdown();
+    physics.Shutdown();
+
+    std::filesystem::remove(scriptPath);
+}

@@ -43,6 +43,7 @@ against `TagComponent::Name`; the first match wins.
 | `select` | `name` or `uuid` | selects the entity (shows the translate gizmo) |
 | `delete_entity` | `name` or `uuid` | – |
 | `set_transform` | `name`/`uuid`, optional `translation`, `rotation` (degrees), `scale` | – |
+| `undo` / `redo` | – | `canUndo`, `canRedo` |
 | `get_transform` | `name` or `uuid` | `translation`, `rotation`, `scale` |
 | `set_mesh` | `name`/`uuid`, `model` (asset-relative path) | – |
 | `add_component` | `name`/`uuid`, `component`, component-specific fields | – |
