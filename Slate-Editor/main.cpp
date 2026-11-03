@@ -77,6 +77,7 @@ protected:
         DrawHierarchy();
         DrawInspector();
         DrawStatistics();
+        DrawGizmo();
     }
 
 private:
@@ -361,6 +362,109 @@ private:
         ImGui::End();
     }
 
+
+    void DrawGizmo()
+    {
+        if (!m_Selected.IsValid() || IsPlaying())
+            return;
+        if (!m_Selected.HasComponent<TransformComponent>())
+            return;
+
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        const ImVec2 viewportPos = viewport->Pos;
+        const ImVec2 viewportSize = viewport->Size;
+        if (viewportSize.x <= 0.0f || viewportSize.y <= 0.0f)
+            return;
+
+        const CameraData camera = GetScene().GetCameraData(viewportSize.x / viewportSize.y);
+        auto& transform = m_Selected.GetComponent<TransformComponent>();
+        const glm::vec3 position = glm::vec3(transform.WorldMatrix[3]);
+
+        auto project = [&](const glm::vec3& world, ImVec2& out) -> bool
+        {
+            const glm::vec4 clip = camera.ViewProjection * glm::vec4(world, 1.0f);
+            if (clip.w <= 0.0f)
+                return false;
+            const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+            out = ImVec2(viewportPos.x + (ndc.x * 0.5f + 0.5f) * viewportSize.x,
+                viewportPos.y + (0.5f - ndc.y * 0.5f) * viewportSize.y);
+            return true;
+        };
+
+        ImVec2 originScreen;
+        if (!project(position, originScreen))
+            return;
+
+        const glm::vec3 axes[3] = { glm::vec3(1, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1) };
+        const ImU32 colors[3] = { IM_COL32(230, 70, 70, 255), IM_COL32(70, 220, 70, 255),
+            IM_COL32(80, 130, 255, 255) };
+        const char* labels[3] = { "X", "Y", "Z" };
+
+        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+        drawList->AddCircleFilled(originScreen, 4.0f, IM_COL32(255, 255, 255, 200));
+
+        ImVec2 handles[3];
+        bool handleValid[3] = { false, false, false };
+
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            handleValid[axis] = project(position + axes[axis], handles[axis]);
+            if (!handleValid[axis])
+                continue;
+
+            drawList->AddLine(originScreen, handles[axis], colors[axis], 2.5f);
+            drawList->AddCircleFilled(handles[axis], 6.0f, colors[axis]);
+            drawList->AddText(ImVec2(handles[axis].x + 9.0f, handles[axis].y - 8.0f),
+                colors[axis], labels[axis]);
+        }
+
+        const ImVec2 mouse = ImGui::GetIO().MousePos;
+
+        if (!m_GizmoDragging && ImGui::IsMouseClicked(0))
+        {
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                if (!handleValid[axis])
+                    continue;
+
+                const float dx = mouse.x - handles[axis].x;
+                const float dy = mouse.y - handles[axis].y;
+                if (dx * dx + dy * dy > 100.0f)
+                    continue;
+
+                m_GizmoAxis = axis;
+                m_GizmoDragging = true;
+                m_GizmoStartMouse = mouse;
+                m_GizmoStartTranslation = transform.Translation;
+                m_GizmoScreenAxis = ImVec2(handles[axis].x - originScreen.x,
+                    handles[axis].y - originScreen.y);
+                break;
+            }
+        }
+
+        if (!m_GizmoDragging)
+            return;
+
+        if (!ImGui::IsMouseDown(0))
+        {
+            m_GizmoDragging = false;
+            return;
+        }
+
+        const float lengthSquared = m_GizmoScreenAxis.x * m_GizmoScreenAxis.x
+            + m_GizmoScreenAxis.y * m_GizmoScreenAxis.y;
+        if (lengthSquared < 1.0f)
+            return;
+
+        const ImVec2 delta(mouse.x - m_GizmoStartMouse.x, mouse.y - m_GizmoStartMouse.y);
+        const float amount = (delta.x * m_GizmoScreenAxis.x + delta.y * m_GizmoScreenAxis.y)
+            / lengthSquared;
+
+        glm::vec3 direction(0.0f);
+        direction[m_GizmoAxis] = 1.0f;
+        transform.Translation = m_GizmoStartTranslation + direction * amount;
+    }
+
     void DrawStatistics()
     {
         ImGui::Begin("Statistics");
@@ -485,6 +589,15 @@ private:
                 entities.push_back({ { "name", tag.Name }, { "uuid", GetScene().GetEntityUUID(entity).ToString() } });
             });
             response["entities"] = entities;
+            return response;
+        }
+
+        if (command == "select")
+        {
+            Entity selected = ResolveEntity(request);
+            if (!selected.IsValid())
+                return { { "ok", false }, { "error", "entity not found" } };
+            m_Selected = selected;
             return response;
         }
 
@@ -631,6 +744,11 @@ private:
     Entity m_Selected;
     std::string m_ScenePath;
     bool m_ShowDemo = false;
+    bool m_GizmoDragging = false;
+    int m_GizmoAxis = 0;
+    ImVec2 m_GizmoStartMouse { 0.0f, 0.0f };
+    ImVec2 m_GizmoScreenAxis { 0.0f, 0.0f };
+    glm::vec3 m_GizmoStartTranslation { 0.0f };
     AutomationServer m_Automation;
 };
 

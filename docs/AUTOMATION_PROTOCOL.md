@@ -36,6 +36,7 @@ against `TagComponent::Name`; the first match wins.
 | `stats` | – | `fps`, `entities`, `drawCalls`, `triangles`, `physicsBodies`, `scriptInstances`, `playing` |
 | `list_entities` | – | `entities: [{name, uuid}]` |
 | `create_entity` | `name` | `uuid` of the new entity |
+| `select` | `name` or `uuid` | selects the entity (shows the translate gizmo) |
 | `delete_entity` | `name` or `uuid` | – |
 | `set_transform` | `name`/`uuid`, optional `translation`, `rotation` (degrees), `scale` | – |
 | `set_mesh` | `name`/`uuid`, `model` (asset-relative path) | – |
