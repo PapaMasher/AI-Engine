@@ -1,0 +1,10 @@
+# Normalize line endings: source files are LF in the repository.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.hdr binary
+*.glb binary
+*.wav binary
+*.ogg binary
+*.spv binary

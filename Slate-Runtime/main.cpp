@@ -27,16 +27,19 @@ protected:
         // Exported games carry a game.json manifest next to the executable.
         const std::filesystem::path manifestPath =
             Slate::FileSystem::GetExecutableDirectory() / "game.json";
-        if (const auto manifest = Slate::FileSystem::ReadTextFile(manifestPath))
+        if (Slate::FileSystem::Exists(manifestPath))
         {
-            try
+            if (const auto manifest = Slate::FileSystem::ReadTextFile(manifestPath))
             {
-                const nlohmann::json json = nlohmann::json::parse(*manifest);
-                scenePath = json.value("scene", scenePath);
-            }
-            catch (const std::exception& exception)
-            {
-                SLATE_WARN("Failed to parse game.json: {}", exception.what());
+                try
+                {
+                    const nlohmann::json json = nlohmann::json::parse(*manifest);
+                    scenePath = json.value("scene", scenePath);
+                }
+                catch (const std::exception& exception)
+                {
+                    SLATE_WARN("Failed to parse game.json: {}", exception.what());
+                }
             }
         }
 
