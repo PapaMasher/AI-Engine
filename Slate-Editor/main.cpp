@@ -601,6 +601,25 @@ private:
             return response;
         }
 
+        if (command == "list_transforms")
+        {
+            nlohmann::json entities = nlohmann::json::array();
+            GetScene().GetRegistry().Each<TransformComponent>([&](Entity entity, TransformComponent& transform)
+            {
+                std::string name;
+                if (entity.HasComponent<TagComponent>())
+                    name = entity.GetComponent<TagComponent>().Name;
+
+                entities.push_back({
+                    { "name", name },
+                    { "uuid", GetScene().GetEntityUUID(entity).ToString() },
+                    { "translation", { transform.Translation.x, transform.Translation.y, transform.Translation.z } }
+                });
+            });
+            response["entities"] = entities;
+            return response;
+        }
+
         if (command == "create_entity")
         {
             const std::string name = request.value("name", "Entity");
@@ -623,7 +642,8 @@ private:
 
         const bool needsEntity = command != "load_scene" && command != "save_scene"
             && command != "screenshot" && command != "play" && command != "stop"
-            && command != "export" && command != "quit";
+            && command != "export" && command != "quit"
+            && command != "key" && command != "mouse" && command != "clear_input";
 
         if (needsEntity && !entity.IsValid())
             return { { "ok", false }, { "error", "entity not found" } };
@@ -713,6 +733,35 @@ private:
             const std::string path = request.value("path", "screenshots/editor.png");
             RequestScreenshot(path);
             response["path"] = path;
+            return response;
+        }
+
+        if (command == "key")
+        {
+            const std::string name = request.value("key", "");
+            const bool down = request.value("down", true);
+            Input::SetKeyDown(KeyFromString(name), down);
+            response["key"] = name;
+            response["down"] = down;
+            return response;
+        }
+
+        if (command == "mouse")
+        {
+            const std::string button = request.value("button", "Left");
+            const bool down = request.value("down", true);
+            if (button == "Right")
+                Input::SetMouseButtonDown(MouseButton::Right, down);
+            else if (button == "Middle")
+                Input::SetMouseButtonDown(MouseButton::Middle, down);
+            else
+                Input::SetMouseButtonDown(MouseButton::Left, down);
+            return response;
+        }
+
+        if (command == "clear_input")
+        {
+            Input::ClearInjectedInput();
             return response;
         }
 

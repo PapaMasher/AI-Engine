@@ -35,6 +35,7 @@ against `TagComponent::Name`; the first match wins.
 | `ping` | – | `engine: "Slate"` |
 | `stats` | – | `fps`, `entities`, `drawCalls`, `triangles`, `physicsBodies`, `scriptInstances`, `playing` |
 | `list_entities` | – | `entities: [{name, uuid}]` |
+| `list_transforms` | – | `entities: [{name, uuid, translation}]` |
 | `create_entity` | `name` | `uuid` of the new entity |
 | `select` | `name` or `uuid` | selects the entity (shows the translate gizmo) |
 | `delete_entity` | `name` or `uuid` | – |
@@ -45,6 +46,9 @@ against `TagComponent::Name`; the first match wins.
 | `load_scene` | `path` | – |
 | `save_scene` | `path` | – |
 | `screenshot` | `path` | `path` (captured after the next presented frame) |
+| `key` | `key` (name), `down` | injects keyboard state for automation and game testing |
+| `mouse` | `button` (`Left`/`Right`/`Middle`), `down` | injects mouse button state |
+| `clear_input` | – | clears every injected key and button |
 | `play` / `stop` | – | toggles physics, scripts and audio |
 | `export` | `name`, optional `output`, `scene` | `output` folder |
 | `quit` | – | closes the editor |

@@ -39,6 +39,23 @@ Full command reference: `docs/AUTOMATION_PROTOCOL.md`.
 5. `screenshot` (deferred one frame) and inspect the PNG.
 6. `export` to package a runnable build.
 
+## Testing a game
+
+Inject input instead of asking a human to press keys:
+
+```python
+call({"cmd": "key", "key": "Left", "down": True})
+time.sleep(0.2)
+call({"cmd": "key", "key": "Left", "down": False})
+call({"cmd": "list_transforms"})   # read positions back
+call({"cmd": "clear_input"})
+```
+
+`list_transforms` returns every entity's translation, which is enough to
+reconstruct board state and drive an automated playthrough. `key` accepts
+letters, `Space`, `Enter`, `Escape`, `Up`/`Down`/`Left`/`Right`, and modifier
+names.
+
 ## Gotchas
 
 - Names must match exactly; use `uuid` from `list_entities` when unsure.

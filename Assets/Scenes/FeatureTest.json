@@ -1,0 +1,148 @@
+{
+  "name": "FeatureTest",
+  "environment": {
+    "ambientColor": [1.0, 1.0, 1.0],
+    "ambientIntensity": 0.45,
+    "exposure": 0.85,
+    "hdriPath": "HDRIs/studio_small_03_1k.hdr",
+    "showSkybox": true
+  },
+  "entities": [
+    {
+      "uuid": "4000000000000001",
+      "name": "Main Camera",
+      "transform": {
+        "translation": [0.0, 2.5, 9.0],
+        "rotation": [-8.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "camera": {
+        "fieldOfView": 55.0,
+        "nearClip": 0.1,
+        "farClip": 500.0,
+        "primary": true
+      }
+    },
+    {
+      "uuid": "4000000000000002",
+      "name": "Sun",
+      "transform": {
+        "translation": [0.0, 6.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "directionalLight": {
+        "direction": [-0.4, -1.0, -0.3],
+        "color": [1.0, 0.96, 0.9],
+        "intensity": 3.0,
+        "castShadows": true
+      }
+    },
+    {
+      "uuid": "4000000000000003",
+      "name": "Point Light",
+      "transform": {
+        "translation": [2.5, 2.0, 2.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "pointLight": {
+        "color": [0.3, 0.6, 1.0],
+        "intensity": 4.0,
+        "range": 8.0
+      },
+      "audioSource": {
+        "clip": "Audio/beep.wav",
+        "volume": 0.4,
+        "loop": false,
+        "playOnStart": true,
+        "spatial": false
+      }
+    },
+    {
+      "uuid": "4000000000000004",
+      "name": "Ground",
+      "transform": {
+        "translation": [0.0, -0.05, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [16.0, 0.1, 16.0]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [0.55, 0.57, 0.6, 1.0],
+        "visible": true,
+        "castShadows": false
+      },
+      "rigidBody": {
+        "type": 0,
+        "mass": 0.0,
+        "friction": 0.8,
+        "restitution": 0.0,
+        "useGravity": false
+      },
+      "boxCollider": { "halfExtents": [8.0, 0.05, 8.0] }
+    },
+    {
+      "uuid": "4000000000000005",
+      "name": "ApiTester",
+      "transform": {
+        "translation": [0.0, 1.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [0.25, 0.85, 0.35, 1.0],
+        "visible": true,
+        "castShadows": true
+      },
+      "script": { "path": "Scripts/ApiTest.lua" }
+    },
+    {
+      "uuid": "4000000000000006",
+      "name": "Falling Sphere",
+      "transform": {
+        "translation": [0.0, 4.0, -1.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [0.5, 0.5, 0.5]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [1.0, 0.55, 0.15, 1.0],
+        "visible": true,
+        "castShadows": true
+      },
+      "rigidBody": {
+        "type": 1,
+        "mass": 1.0,
+        "friction": 0.6,
+        "restitution": 0.4,
+        "useGravity": true
+      },
+      "sphereCollider": { "radius": 0.25 }
+    },
+    {
+      "uuid": "4000000000000007",
+      "name": "Static Platform",
+      "transform": {
+        "translation": [-2.5, 0.4, 1.0],
+        "rotation": [0.0, 15.0, 0.0],
+        "scale": [2.0, 0.2, 2.0]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [0.2, 0.4, 0.9, 1.0],
+        "visible": true,
+        "castShadows": true
+      },
+      "rigidBody": {
+        "type": 0,
+        "mass": 0.0,
+        "friction": 0.9,
+        "restitution": 0.0,
+        "useGravity": false
+      },
+      "boxCollider": { "halfExtents": [1.0, 0.1, 1.0] }
+    }
+  ]
+}

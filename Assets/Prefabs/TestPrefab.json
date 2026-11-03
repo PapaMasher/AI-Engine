@@ -1,0 +1,34 @@
+{
+  "prefab": {
+    "uuid": "3000000000000001",
+    "name": "Turret",
+    "transform": {
+      "translation": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0]
+    },
+    "meshRenderer": {
+      "model": "Models/BoxTextured.glb",
+      "tint": [0.2, 0.6, 1.0, 1.0],
+      "visible": true,
+      "castShadows": true
+    }
+  },
+  "children": [
+    {
+      "uuid": "3000000000000002",
+      "name": "Barrel",
+      "transform": {
+        "translation": [0.0, 0.6, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [0.3, 0.6, 0.3]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [1.0, 0.4, 0.2, 1.0],
+        "visible": true,
+        "castShadows": true
+      }
+    }
+  ]
+}

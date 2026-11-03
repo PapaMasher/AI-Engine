@@ -38,6 +38,10 @@ enum class MouseButton : int
     Button5 = 4
 };
 
+// Maps a key name ("A", "Space", "Left", ...) to a Key. Unknown names map to
+// Space, matching the scripting API's forgiving behaviour.
+Key KeyFromString(const std::string& name);
+
 // Polled keyboard and mouse state. Updated once per frame by Window::PollEvents.
 class Input
 {
@@ -67,14 +71,26 @@ public:
     static void OnCursorPosition(double x, double y);
     static void OnScroll(double yOffset);
 
+    // Injects input state for automation and tests. Injected keys stay down
+    // until cleared, independent of the real keyboard.
+    static void SetKeyDown(Key key, bool down);
+    static void SetMouseButtonDown(MouseButton button, bool down);
+    static void ClearInjectedInput();
+
 private:
     static inline GLFWwindow* s_Window = nullptr;
     static inline std::array<bool, 512> s_KeyDown {};
     static inline std::array<bool, 512> s_KeyPressed {};
     static inline std::array<bool, 512> s_KeyReleased {};
+    static inline std::array<bool, 512> s_InjectedKeyDown {};
+    static inline std::array<bool, 512> s_InjectedKeyPressed {};
+    static inline std::array<bool, 512> s_InjectedKeyReleased {};
     static inline std::array<bool, 8> s_MouseDown {};
     static inline std::array<bool, 8> s_MousePressed {};
     static inline std::array<bool, 8> s_MouseReleased {};
+    static inline std::array<bool, 8> s_InjectedMouseDown {};
+    static inline std::array<bool, 8> s_InjectedMousePressed {};
+    static inline std::array<bool, 8> s_InjectedMouseReleased {};
     static inline glm::vec2 s_MousePosition { 0.0f };
     static inline glm::vec2 s_MouseDelta { 0.0f };
     static inline float s_ScrollDelta = 0.0f;

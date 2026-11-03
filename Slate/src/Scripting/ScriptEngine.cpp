@@ -16,26 +16,6 @@ namespace Slate {
 
 namespace {
 
-Key KeyFromString(const std::string& name)
-{
-    static const std::unordered_map<std::string, Key> keys = {
-        { "A", Key::A }, { "B", Key::B }, { "C", Key::C }, { "D", Key::D },
-        { "E", Key::E }, { "F", Key::F }, { "G", Key::G }, { "H", Key::H },
-        { "I", Key::I }, { "J", Key::J }, { "K", Key::K }, { "L", Key::L },
-        { "M", Key::M }, { "N", Key::N }, { "O", Key::O }, { "P", Key::P },
-        { "Q", Key::Q }, { "R", Key::R }, { "S", Key::S }, { "T", Key::T },
-        { "U", Key::U }, { "V", Key::V }, { "W", Key::W }, { "X", Key::X },
-        { "Y", Key::Y }, { "Z", Key::Z },
-        { "Space", Key::Space }, { "Enter", Key::Enter }, { "Escape", Key::Escape },
-        { "LeftShift", Key::LeftShift }, { "LeftControl", Key::LeftControl },
-        { "LeftAlt", Key::LeftAlt }, { "Up", Key::Up }, { "Down", Key::Down },
-        { "Left", Key::Left }, { "Right", Key::Right }
-    };
-
-    const auto it = keys.find(name);
-    return it != keys.end() ? it->second : Key::Space;
-}
-
 sol::table Vec3ToTable(sol::state& lua, const glm::vec3& value)
 {
     sol::table table = lua.create_table();
@@ -136,6 +116,36 @@ void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics)
         {
             if (entity.HasComponent<TransformComponent>())
                 entity.GetComponent<TransformComponent>().Scale = glm::vec3(x, y, z);
+        },
+        "SetMesh", [](Entity entity, const std::string& modelPath)
+        {
+            if (!entity.HasComponent<MeshRendererComponent>())
+                entity.AddComponent<MeshRendererComponent>();
+            entity.GetComponent<MeshRendererComponent>().ModelPath = modelPath;
+        },
+        "SetTint", [](Entity entity, float r, float g, float b, float a)
+        {
+            if (!entity.HasComponent<MeshRendererComponent>())
+                entity.AddComponent<MeshRendererComponent>();
+            entity.GetComponent<MeshRendererComponent>().Tint = glm::vec4(r, g, b, a);
+        },
+        "Tint", [this](const Entity& entity) -> sol::table
+        {
+            glm::vec4 tint(1.0f);
+            if (entity.HasComponent<MeshRendererComponent>())
+                tint = entity.GetComponent<MeshRendererComponent>().Tint;
+
+            sol::table table = m_Impl->Lua.create_table();
+            table["r"] = tint.r;
+            table["g"] = tint.g;
+            table["b"] = tint.b;
+            table["a"] = tint.a;
+            return table;
+        },
+        "SetVisible", [](Entity entity, bool visible)
+        {
+            if (entity.HasComponent<MeshRendererComponent>())
+                entity.GetComponent<MeshRendererComponent>().Visible = visible;
         },
         "Translate", [](Entity entity, float x, float y, float z)
         {

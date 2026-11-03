@@ -170,6 +170,20 @@ while the editor renders.
 - Textures referenced by models are embedded in the GLB or live beside it.
 - Never hand-edit generated SPIR-V; edit the GLSL in `Assets/Shaders/`.
 
+## Sample game
+
+`Assets/Scenes/SlateBlocks.json` plus `Assets/Scripts/SlateBlocks.lua` is a
+playable 3D Tetris written entirely in Lua against the public scripting API.
+It spawns and destroys every block itself, keeps its own board state, clears
+lines and keeps score, so it doubles as an end-to-end scripting test.
+
+```bash
+SLATE_SCENE=Scenes/SlateBlocks.json ./bin/Slate-Runtime.exe
+```
+
+Controls: Left/Right or A/D move, Down or S soft drop, Up or W rotate, Space
+hard drop, Enter restarts after game over.
+
 ## Play mode
 
 `Application::SetPlaying(true)` snapshots the scene to JSON before physics and

@@ -49,6 +49,41 @@ TEST_CASE("Lua scripts run OnCreate and OnUpdate")
     std::filesystem::remove(scriptPath);
 }
 
+TEST_CASE("Lua scripts can assign meshes, tints and visibility")
+{
+    const auto scriptPath = std::filesystem::temp_directory_path() / "slate_mesh_script.lua";
+    {
+        std::ofstream stream(scriptPath);
+        stream << "function OnCreate(entity)\n"
+                  "  entity:SetMesh('Models/BoxTextured.glb')\n"
+                  "  entity:SetTint(0.1, 0.2, 0.3, 1.0)\n"
+                  "  entity:SetVisible(false)\n"
+                  "end\n";
+    }
+
+    Scene scene("MeshScript");
+    Entity entity = scene.CreateEntity("MeshTarget");
+    entity.AddComponent<ScriptComponent>().ScriptPath = scriptPath.string();
+
+    PhysicsWorld physics;
+    physics.Init();
+
+    ScriptEngine scripts;
+    scripts.Init(scene, &physics);
+    scripts.Start();
+
+    REQUIRE(entity.HasComponent<MeshRendererComponent>());
+    CHECK(entity.GetComponent<MeshRendererComponent>().ModelPath == "Models/BoxTextured.glb");
+    CHECK(entity.GetComponent<MeshRendererComponent>().Tint.g == doctest::Approx(0.2f));
+    CHECK_FALSE(entity.GetComponent<MeshRendererComponent>().Visible);
+
+    scripts.Stop();
+    scripts.Shutdown();
+    physics.Shutdown();
+
+    std::filesystem::remove(scriptPath);
+}
+
 TEST_CASE("Lua scripts can create entities")
 {
     const auto scriptPath = std::filesystem::temp_directory_path() / "slate_spawn_script.lua";

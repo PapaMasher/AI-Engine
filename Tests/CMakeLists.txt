@@ -5,7 +5,8 @@ add_executable(SlateTests
     ECSTests.cpp
     SceneTests.cpp
     PhysicsTests.cpp
-    ScriptingTests.cpp)
+    ScriptingTests.cpp
+    InputTests.cpp)
 
 target_link_libraries(SlateTests PRIVATE Slate doctest)
 

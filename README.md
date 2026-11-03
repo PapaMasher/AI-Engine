@@ -84,8 +84,28 @@ Start the editor with `SLATE_AUTOMATION_PORT=45800` and send JSON lines:
 {"cmd":"export","name":"MyGame"}
 ```
 
+Agents can also inject input, which makes games testable end to end:
+
+```json
+{"cmd":"key","key":"Space","down":true}
+{"cmd":"list_transforms"}
+```
+
 See [docs/AUTOMATION_PROTOCOL.md](docs/AUTOMATION_PROTOCOL.md) for the complete
 command set and the skills in `skills/` for worked workflows.
+
+## Sample game
+
+`Assets/Scenes/SlateBlocks.json` is a playable 3D Tetris written entirely in
+Lua against the engine's scripting API — it spawns blocks, runs its own board
+logic, clears lines and keeps score:
+
+```bash
+SLATE_SCENE=Scenes/SlateBlocks.json ./build/bin/Slate-Runtime.exe
+```
+
+Left/Right or A/D move, Down or S soft drop, Up or W rotate, Space hard drop,
+Enter restarts.
 
 ## Layout
 
