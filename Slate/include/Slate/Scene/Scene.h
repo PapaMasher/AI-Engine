@@ -73,6 +73,10 @@ public:
     bool Save(const std::string& path) const;
     bool Load(const std::string& path);
 
+    // In-memory serialization, used for play-mode snapshots and tooling.
+    std::string Serialize() const;
+    bool Deserialize(const std::string& text, const std::string& sourceName = "memory");
+
     // Prefabs: save an entity subtree, instantiate it later.
     bool SavePrefab(Entity entity, const std::string& path) const;
     Entity InstantiatePrefab(const std::string& path, const glm::vec3& position = glm::vec3(0.0f));

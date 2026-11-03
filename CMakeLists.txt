@@ -22,6 +22,24 @@ option(SLATE_ENABLE_VALIDATION "Enable Vulkan validation layers in debug builds"
 
 include(cmake/Dependencies.cmake)
 
+# Warnings apply to first-party targets only (Slate, editor, runtime, tests);
+# vendored dependencies keep their own flags.
+if(MSVC)
+    set(SLATE_WARNING_FLAGS /W4)
+else()
+    set(SLATE_WARNING_FLAGS -Wall -Wextra)
+endif()
+
+if(SLATE_WARNINGS_AS_ERRORS)
+    if(MSVC)
+        list(APPEND SLATE_WARNING_FLAGS /WX)
+    else()
+        list(APPEND SLATE_WARNING_FLAGS -Werror)
+    endif()
+endif()
+
+add_compile_options(${SLATE_WARNING_FLAGS})
+
 add_subdirectory(Slate)
 
 if(SLATE_BUILD_EDITOR)

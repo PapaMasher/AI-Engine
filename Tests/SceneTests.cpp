@@ -58,6 +58,23 @@ TEST_CASE("Scene serialization round-trips entities and components")
     std::filesystem::remove(path);
 }
 
+TEST_CASE("Scene serializes to memory and restores")
+{
+    Scene scene("Memory");
+    Entity entity = scene.CreateEntity("Thing");
+    entity.GetComponent<TransformComponent>().Translation = glm::vec3(4.0f, 5.0f, 6.0f);
+
+    const std::string snapshot = scene.Serialize();
+    REQUIRE_FALSE(snapshot.empty());
+
+    scene.CreateEntity("Spam");
+    REQUIRE(scene.GetEntityCount() == 2);
+
+    REQUIRE(scene.Deserialize(snapshot, "snapshot"));
+    CHECK(scene.GetEntityCount() == 1);
+    CHECK(scene.GetName() == "Memory");
+}
+
 TEST_CASE("Scene hierarchy propagates world transforms")
 {
     Scene scene("Hierarchy");

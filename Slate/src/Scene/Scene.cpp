@@ -135,8 +135,6 @@ json SerializeEntityToJson(const Registry& registry, Entity entity)
 
 Entity DeserializeEntityFromJson(Scene& scene, const json& j)
 {
-    Registry& registry = scene.GetRegistry();
-
     const std::string name = j.value("name", "Entity");
     Entity entity = scene.CreateEntity(name);
 
@@ -423,7 +421,7 @@ void Scene::OnUpdate(double deltaTime)
     (void)deltaTime;
 }
 
-bool Scene::Save(const std::string& path) const
+std::string Scene::Serialize() const
 {
     json root;
     root["name"] = m_Name;
@@ -442,41 +440,19 @@ bool Scene::Save(const std::string& path) const
     });
     root["entities"] = std::move(entities);
 
-    const std::filesystem::path resolved = FileSystem::ResolveAssetPath(path);
-    std::error_code error;
-    if (resolved.has_parent_path())
-        std::filesystem::create_directories(resolved.parent_path(), error);
-
-    std::ofstream stream(resolved);
-    if (!stream.is_open())
-    {
-        SLATE_ERROR("Failed to save scene '{}'", resolved.string());
-        return false;
-    }
-
-    stream << root.dump(2);
-    SLATE_INFO("Saved scene '{}' ({} entities)", resolved.string(), GetEntityCount());
-    return true;
+    return root.dump(2);
 }
 
-bool Scene::Load(const std::string& path)
+bool Scene::Deserialize(const std::string& text, const std::string& sourceName)
 {
-    const std::filesystem::path resolved = FileSystem::ResolveAssetPath(path);
-    std::ifstream stream(resolved);
-    if (!stream.is_open())
-    {
-        SLATE_ERROR("Failed to open scene '{}'", resolved.string());
-        return false;
-    }
-
     json root;
     try
     {
-        stream >> root;
+        root = json::parse(text);
     }
     catch (const std::exception& exception)
     {
-        SLATE_ERROR("Failed to parse scene '{}': {}", resolved.string(), exception.what());
+        SLATE_ERROR("Failed to parse scene '{}': {}", sourceName, exception.what());
         return false;
     }
 
@@ -502,8 +478,41 @@ bool Scene::Load(const std::string& path)
     }
 
     UpdateTransforms();
-    SLATE_INFO("Loaded scene '{}' ({} entities)", resolved.string(), GetEntityCount());
+    SLATE_INFO("Loaded scene from '{}' ({} entities)", sourceName, GetEntityCount());
     return true;
+}
+
+bool Scene::Save(const std::string& path) const
+{
+    const std::filesystem::path resolved = FileSystem::ResolveAssetPath(path);
+    std::error_code error;
+    if (resolved.has_parent_path())
+        std::filesystem::create_directories(resolved.parent_path(), error);
+
+    std::ofstream stream(resolved);
+    if (!stream.is_open())
+    {
+        SLATE_ERROR("Failed to save scene '{}'", resolved.string());
+        return false;
+    }
+
+    stream << Serialize();
+    SLATE_INFO("Saved scene '{}' ({} entities)", resolved.string(), GetEntityCount());
+    return true;
+}
+
+bool Scene::Load(const std::string& path)
+{
+    const std::filesystem::path resolved = FileSystem::ResolveAssetPath(path);
+    std::ifstream stream(resolved);
+    if (!stream.is_open())
+    {
+        SLATE_ERROR("Failed to open scene '{}'", resolved.string());
+        return false;
+    }
+
+    std::string text((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+    return Deserialize(text, resolved.string());
 }
 
 bool Scene::SavePrefab(Entity entity, const std::string& path) const

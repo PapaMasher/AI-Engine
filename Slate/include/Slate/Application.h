@@ -64,6 +64,7 @@ private:
     bool m_Started = false;
     bool m_Playing = false;
     std::string m_PendingScreenshot;
+    std::string m_PlaySnapshot;
 };
 
 } // namespace Slate

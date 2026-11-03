@@ -37,6 +37,9 @@ void Application::SetPlaying(bool playing)
 
     if (m_Playing)
     {
+        // Snapshot the authored scene so stopping play restores it exactly.
+        m_PlaySnapshot = m_Scene.Serialize();
+
         m_Physics.Clear();
         m_Scripts.Start();
 
@@ -57,6 +60,13 @@ void Application::SetPlaying(bool playing)
         m_Scripts.Stop();
         m_Audio.StopAll();
         m_Physics.Clear();
+
+        if (!m_PlaySnapshot.empty())
+        {
+            m_Scene.Deserialize(m_PlaySnapshot, "play snapshot");
+            m_PlaySnapshot.clear();
+        }
+
         SLATE_INFO("Play mode stopped");
     }
 }

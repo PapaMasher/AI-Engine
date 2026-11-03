@@ -45,11 +45,6 @@ sol::table Vec3ToTable(sol::state& lua, const glm::vec3& value)
     return table;
 }
 
-glm::vec3 TableToVec3(const sol::table& table)
-{
-    return glm::vec3(table.get_or("x", 0.0f), table.get_or("y", 0.0f), table.get_or("z", 0.0f));
-}
-
 } // namespace
 
 struct ScriptEngine::Impl
