@@ -640,6 +640,15 @@ private:
             return response;
         }
 
+        if (command == "get_transform")
+        {
+            const auto& transform = entity.GetComponent<TransformComponent>();
+            response["translation"] = { transform.Translation.x, transform.Translation.y, transform.Translation.z };
+            response["rotation"] = { transform.Rotation.x, transform.Rotation.y, transform.Rotation.z };
+            response["scale"] = { transform.Scale.x, transform.Scale.y, transform.Scale.z };
+            return response;
+        }
+
         if (command == "set_mesh")
         {
             if (!entity.HasComponent<MeshRendererComponent>())
