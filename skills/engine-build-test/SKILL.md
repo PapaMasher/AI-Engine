@@ -33,8 +33,12 @@ cd build && ctest --output-on-failure
 ```bash
 SLATE_MAX_FRAMES=120 ./bin/Slate-Editor.exe
 SLATE_MAX_FRAMES=120 SLATE_SCREENSHOT_PATH=shot.png ./bin/Slate-Editor.exe
-SLATE_SCENE=Scenes/OrientationTest.json ./bin/Slate-Runtime.exe
+./bin/Slate-Runtime.exe Scenes/OrientationTest.json
 ```
+
+Both binaries accept a positional scene path or `--scene <path>`, plus
+`--assets <dir>`; `SLATE_SCENE` remains a fallback but arguments take
+precedence.
 
 Check the log for `[ERROR]` / `[CRITICAL]`; a clean run must print zero.
 

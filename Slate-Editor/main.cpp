@@ -5,6 +5,9 @@
 #include "Slate/Platform/Input.h"
 #include "Slate/Editor/AutomationServer.h"
 #include "Slate/Editor/GameExporter.h"
+#include "Slate/Core/CommandLine.h"
+
+#include <iostream>
 
 #include <imgui.h>
 #include <nlohmann/json.hpp>
@@ -23,8 +26,9 @@ using namespace Slate;
 class SlateEditor : public Application
 {
 public:
-    SlateEditor()
+    explicit SlateEditor(std::string scenePath)
         : Application({ "Slate Editor", 1600, 900 }, true)
+        , m_StartupScene(std::move(scenePath))
     {
         GetContext().InitImGui();
     }
@@ -34,9 +38,7 @@ protected:
     {
         SLATE_INFO("Slate editor started; asset root: {}", FileSystem::GetAssetRoot().string());
 
-        m_ScenePath = "Scenes/TestScene.json";
-        if (const char* envScene = std::getenv("SLATE_SCENE"))
-            m_ScenePath = envScene;
+        m_ScenePath = m_StartupScene;
 
         if (!GetScene().Load(m_ScenePath))
         {
@@ -800,6 +802,7 @@ private:
     }
 
     Entity m_Selected;
+    std::string m_StartupScene;
     std::string m_ScenePath;
     bool m_ShowDemo = false;
     bool m_GizmoDragging = false;
@@ -812,14 +815,38 @@ private:
 
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
+    const Slate::CommandLineOptions options = Slate::ParseCommandLine(argc, argv);
+    if (options.ShowHelp)
+    {
+        Slate::PrintUsage(std::cout, "Slate-Editor", "Slate engine editor.");
+        return 0;
+    }
+
+    if (!options.AssetRoot.empty())
+        Slate::FileSystem::SetAssetRoot(options.AssetRoot);
+
+    std::string scenePath = options.ScenePath;
+    if (scenePath.empty())
+    {
+        if (const char* environmentScene = std::getenv("SLATE_SCENE");
+            environmentScene != nullptr && *environmentScene != '\0')
+        {
+            scenePath = environmentScene;
+        }
+        else
+        {
+            scenePath = "Scenes/TestScene.json";
+        }
+    }
+
     Slate::Log::Init("Slate-Editor.log");
     Slate::InstallCrashHandler();
     SLATE_INFO("Slate Editor");
 
     {
-        SlateEditor editor;
+        SlateEditor editor(std::move(scenePath));
         editor.Run();
     }
 

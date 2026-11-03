@@ -55,9 +55,24 @@ Windows binaries are linked statically, so they run without any MinGW DLLs on
 ## Run
 
 ```bash
-./build/bin/Slate-Editor.exe      # editor
-./build/bin/Slate-Runtime.exe     # runtime (loads game.json if present)
+./build/bin/Slate-Editor.exe                      # editor, default scene
+./build/bin/Slate-Editor.exe Scenes/SlateBlocks.json
+./build/bin/Slate-Runtime.exe                     # exported game via game.json
+./build/bin/Slate-Runtime.exe Scenes/SlateBlocks.json
+./build/bin/Slate-Runtime.exe --scene Scenes/FeatureTest.json
 ```
+
+Both binaries accept:
+
+```
+<scene>                 scene to load, relative to the asset root
+--scene, -s <path>      same as the positional argument
+--assets, -a <dir>      override the asset root
+--help, -h              usage
+```
+
+`SLATE_SCENE` and `SLATE_AUTOMATION_PORT` remain as environment fallbacks;
+command-line arguments take precedence.
 
 Frame-limited smoke run:
 

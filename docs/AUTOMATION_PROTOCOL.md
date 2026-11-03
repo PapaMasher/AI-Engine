@@ -7,8 +7,11 @@ one object per line. Every response contains `ok` and echoes `cmd`.
 Start the editor headless-ish (a window still opens) and keep it running:
 
 ```bash
-SLATE_AUTOMATION_PORT=45800 ./bin/Slate-Editor.exe
+SLATE_AUTOMATION_PORT=45800 ./bin/Slate-Editor.exe Scenes/SlateBlocks.json
 ```
+
+The scene can also be passed as `--scene <path>`; `SLATE_SCENE` still works as
+a fallback but arguments take precedence.
 
 Minimal client:
 
