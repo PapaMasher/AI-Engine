@@ -40,6 +40,13 @@ endif()
 
 add_compile_options(${SLATE_WARNING_FLAGS})
 
+# Windows builds use MinGW-w64, whose C++ runtime and winpthread live outside
+# the system PATH. Link them statically so the editor, runtime and exported
+# games run without any MinGW DLLs present.
+if(MINGW)
+    add_link_options(-static)
+endif()
+
 add_subdirectory(Slate)
 
 if(SLATE_BUILD_EDITOR)

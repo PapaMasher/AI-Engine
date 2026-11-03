@@ -70,6 +70,11 @@ cmake --build build -j $(nproc)
 Requirements: CMake 3.24+, Ninja, a C++20 compiler, Vulkan 1.2+ drivers, and
 `glslangValidator` (set `SLATE_GLSLANG` or put it on `PATH`).
 
+On Windows the MinGW build links the C++ runtime and winpthread statically
+(`-static`), so `Slate-Editor.exe`, `Slate-Runtime.exe` and exported games run
+without `libwinpthread-1.dll`, `libstdc++-6.dll` or `libgcc_s_seh-1.dll` being
+on `PATH`. Only Windows system DLLs are imported.
+
 Options:
 
 | Option | Default | Meaning |

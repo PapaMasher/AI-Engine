@@ -49,6 +49,9 @@ cmake --build build -j $(nproc)
 You need a Vulkan 1.2+ driver, CMake 3.20+, Ninja, a C++20 compiler and
 `glslangValidator` on `PATH` (or `-DSLATE_GLSLANG=/path/to/glslangValidator`).
 
+Windows binaries are linked statically, so they run without any MinGW DLLs on
+`PATH`.
+
 ## Run
 
 ```bash
