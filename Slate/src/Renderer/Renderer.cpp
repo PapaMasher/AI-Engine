@@ -1175,43 +1175,62 @@ void Renderer::ComputeFrameConstants(Scene& scene, const CameraData& camera)
 
 void Renderer::ComputeLightMatrices(Scene& scene)
 {
-    // Fit an orthographic shadow frustum around the scene bounds.
+    // Fit the shadow frustum around the objects that actually cast shadows.
+    // Receivers (large ground planes) are deliberately excluded so a huge
+    // floor does not stretch the shadow map and blur every contact shadow.
     glm::vec3 boundsMin(std::numeric_limits<float>::max());
     glm::vec3 boundsMax(std::numeric_limits<float>::lowest());
-    bool hasGeometry = false;
+    bool hasCasters = false;
+
+    auto accumulate = [&](MeshRendererComponent& renderer, TransformComponent& transform)
+    {
+        Ref<Model> model = m_Assets.LoadModel(renderer.ModelPath);
+        if (!model || model->Meshes.empty())
+            return;
+
+        glm::vec3 modelMin(std::numeric_limits<float>::max());
+        glm::vec3 modelMax(std::numeric_limits<float>::lowest());
+        for (const Mesh& mesh : model->Meshes)
+        {
+            modelMin = glm::min(modelMin, mesh.BoundsMin);
+            modelMax = glm::max(modelMax, mesh.BoundsMax);
+        }
+
+        for (int corner = 0; corner < 8; ++corner)
+        {
+            const glm::vec3 point(
+                (corner & 1) ? modelMax.x : modelMin.x,
+                (corner & 2) ? modelMax.y : modelMin.y,
+                (corner & 4) ? modelMax.z : modelMin.z);
+            const glm::vec3 world = TransformPoint(transform.WorldMatrix, point);
+            boundsMin = glm::min(boundsMin, world);
+            boundsMax = glm::max(boundsMax, world);
+        }
+    };
 
     scene.GetRegistry().Each<MeshRendererComponent, TransformComponent>(
         [&](Entity entity, MeshRendererComponent& renderer, TransformComponent& transform)
         {
-            if (!renderer.Visible || renderer.ModelPath.empty())
+            if (!renderer.Visible || !renderer.CastShadows || renderer.ModelPath.empty())
                 return;
 
-            Ref<Model> model = m_Assets.LoadModel(renderer.ModelPath);
-            if (!model || model->Meshes.empty())
-                return;
-
-            glm::vec3 modelMin(std::numeric_limits<float>::max());
-            glm::vec3 modelMax(std::numeric_limits<float>::lowest());
-            for (const Mesh& mesh : model->Meshes)
-            {
-                modelMin = glm::min(modelMin, mesh.BoundsMin);
-                modelMax = glm::max(modelMax, mesh.BoundsMax);
-            }
-
-            for (int corner = 0; corner < 8; ++corner)
-            {
-                const glm::vec3 point(
-                    (corner & 1) ? modelMax.x : modelMin.x,
-                    (corner & 2) ? modelMax.y : modelMin.y,
-                    (corner & 4) ? modelMax.z : modelMin.z);
-                const glm::vec3 world = TransformPoint(transform.WorldMatrix, point);
-                boundsMin = glm::min(boundsMin, world);
-                boundsMax = glm::max(boundsMax, world);
-                hasGeometry = true;
-            }
+            accumulate(renderer, transform);
+            hasCasters = true;
         });
 
-    if (!hasGeometry)
+    if (!hasCasters)
+    {
+        scene.GetRegistry().Each<MeshRendererComponent, TransformComponent>(
+            [&](Entity entity, MeshRendererComponent& renderer, TransformComponent& transform)
+            {
+                if (!renderer.Visible || renderer.ModelPath.empty())
+                    return;
+
+                accumulate(renderer, transform);
+            });
+    }
+
+    if (boundsMin.x > boundsMax.x)
     {
         boundsMin = glm::vec3(-10.0f);
         boundsMax = glm::vec3(10.0f);
@@ -1223,10 +1242,12 @@ void Renderer::ComputeLightMatrices(Scene& scene)
     const glm::vec3 lightDirection = glm::normalize(glm::vec3(m_FrameConstants.LightDirection));
     const glm::vec3 lightPosition = center - lightDirection * radius * 2.0f;
 
-    const glm::vec3 up = std::abs(lightDirection.y) > 0.99f ? glm::vec3(1.0f, 0.0f, 0.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+    const glm::vec3 up = std::abs(lightDirection.y) > 0.99f
+        ? glm::vec3(1.0f, 0.0f, 0.0f)
+        : glm::vec3(0.0f, 1.0f, 0.0f);
     const glm::mat4 lightView = glm::lookAt(lightPosition, center, up);
 
-    glm::mat4 lightProjection = glm::ortho(-radius, radius, -radius, radius, 0.1f, radius * 4.0f);
+    const glm::mat4 lightProjection = glm::ortho(-radius, radius, -radius, radius, 0.1f, radius * 4.0f);
 
     m_FrameConstants.LightViewProjection = lightProjection * lightView;
 }

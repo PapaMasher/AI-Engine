@@ -209,5 +209,9 @@ void main()
 
     const vec3 ambient = (kD * diffuseIBL + specularIBL) * uAmbientColor.w * ao;
 
-    outColor = vec4((direct + ambient + emissive) * uExposure.x, baseColor.a);
+    // Contact shadows: part of the SSAO term also attenuates direct light so
+    // objects read as grounded even when ambient light is kept low.
+    const vec3 contact = mix(vec3(1.0), vec3(ao), 0.35);
+
+    outColor = vec4((direct * contact + ambient + emissive) * uExposure.x, baseColor.a);
 }
