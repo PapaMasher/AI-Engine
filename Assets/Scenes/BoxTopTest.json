@@ -1,0 +1,274 @@
+{
+  "name": "BoxTopTest",
+  "environment": {
+    "ambientColor": [
+      0.08,
+      0.09,
+      0.11
+    ],
+    "ambientIntensity": 0.35,
+    "exposure": 1.0,
+    "hdriPath": "HDRIs/studio_small_03_1k.hdr",
+    "showSkybox": false
+  },
+  "entities": [
+    {
+      "uuid": "1000000000000001",
+      "name": "Main Camera",
+      "transform": {
+        "translation": [
+          -1.8,
+          3.0,
+          2.4
+        ],
+        "rotation": [
+          -50.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "camera": {
+        "fieldOfView": 60.0,
+        "nearClip": 0.1,
+        "farClip": 500.0,
+        "primary": true
+      }
+    },
+    {
+      "uuid": "1000000000000002",
+      "name": "Sun",
+      "transform": {
+        "translation": [
+          0.0,
+          5.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "directionalLight": {
+        "direction": [
+          -0.4,
+          -1.0,
+          -0.35
+        ],
+        "color": [
+          1.0,
+          0.95,
+          0.85
+        ],
+        "intensity": 3.0,
+        "castShadows": true
+      }
+    },
+    {
+      "uuid": "1000000000000003",
+      "name": "Damaged Helmet",
+      "transform": {
+        "translation": [
+          0.0,
+          0.85,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          180.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "meshRenderer": {
+        "model": "Models/DamagedHelmet.glb",
+        "tint": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "visible": false,
+        "castShadows": true
+      },
+      "script": {
+        "path": "Scripts/Spinner.lua"
+      }
+    },
+    {
+      "uuid": "1000000000000004",
+      "name": "Textured Box",
+      "transform": {
+        "translation": [
+          -1.8,
+          0.5,
+          0.4
+        ],
+        "rotation": [
+          0.0,
+          30.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [
+          1.0,
+          0.15,
+          0.12,
+          1.0
+        ],
+        "visible": true,
+        "castShadows": true
+      }
+    },
+    {
+      "uuid": "1000000000000005",
+      "name": "Ground",
+      "transform": {
+        "translation": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          12.0,
+          0.1,
+          12.0
+        ]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [
+          0.6,
+          0.6,
+          0.62,
+          1.0
+        ],
+        "visible": true,
+        "castShadows": false
+      },
+      "rigidBody": {
+        "type": 0,
+        "mass": 0.0,
+        "friction": 0.8,
+        "restitution": 0.0,
+        "useGravity": false
+      },
+      "boxCollider": {
+        "halfExtents": [
+          6.0,
+          0.05,
+          6.0
+        ]
+      }
+    },
+    {
+      "uuid": "1000000000000006",
+      "name": "Point Light",
+      "transform": {
+        "translation": [
+          1.5,
+          1.2,
+          1.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "pointLight": {
+        "color": [
+          0.3,
+          0.6,
+          1.0
+        ],
+        "intensity": 4.0,
+        "range": 6.0
+      },
+      "audioSource": {
+        "clip": "Audio/beep.wav",
+        "volume": 0.5,
+        "loop": false,
+        "playOnStart": true,
+        "spatial": false
+      }
+    },
+    {
+      "uuid": "1000000000000007",
+      "name": "Falling Box",
+      "transform": {
+        "translation": [
+          1.5,
+          4.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          0.6,
+          0.6,
+          0.6
+        ]
+      },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [
+          1.0,
+          0.55,
+          0.15,
+          1.0
+        ],
+        "visible": false,
+        "castShadows": true
+      },
+      "rigidBody": {
+        "type": 1,
+        "mass": 1.0,
+        "friction": 0.5,
+        "restitution": 0.3,
+        "useGravity": true
+      },
+      "boxCollider": {
+        "halfExtents": [
+          0.3,
+          0.3,
+          0.3
+        ]
+      }
+    }
+  ]
+}

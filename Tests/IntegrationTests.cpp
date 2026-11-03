@@ -152,3 +152,56 @@ TEST_CASE("Cube front faces are visible, not inside-out")
     const double luminance = MeanLuminance(stats, stats.Width / 2, stats.Height / 2, 20);
     CHECK(luminance > 120.0);
 }
+
+TEST_CASE("Cube top faces render from an oblique camera")
+{
+    const PixelStats stats = RenderScene("Scenes/CubeTopTest.json", "slate_cubetop.png");
+
+    // The camera looks down at a red cube against a black background. If the
+    // forward pass fails its depth test against the prepass (or the top face
+    // is culled), the upper part of the cube disappears and only background
+    // pixels remain there.
+    int redCount = 0;
+    for (int y = 0; y < stats.Height / 2; ++y)
+    {
+        for (int x = 0; x < stats.Width; ++x)
+        {
+            const unsigned char* pixel = &stats.Pixels[(y * stats.Width + x) * 4];
+            const int r = pixel[0];
+            const int g = pixel[1];
+            const int b = pixel[2];
+
+            if (r > 50 && r > g + 25 && r > b + 25)
+                ++redCount;
+        }
+    }
+
+    CHECK(redCount > 800);
+}
+
+TEST_CASE("Box tops stay visible above a ground plane")
+{
+    const PixelStats stats = RenderScene("Scenes/BoxTopTest.json", "slate_boxtop.png");
+
+    // A red box sits on a dark ground plane, seen from 45 degrees. The top
+    // face must occupy the upper half of the frame; if it is culled or
+    // rejected by the depth test only the background remains there.
+    int redTop = 0;
+    for (int y = 0; y < stats.Height / 2; ++y)
+    {
+        for (int x = 0; x < stats.Width; ++x)
+        {
+            const unsigned char* pixel = &stats.Pixels[(y * stats.Width + x) * 4];
+            const int r = pixel[0];
+            const int g = pixel[1];
+            const int b = pixel[2];
+
+            if (r > 50 && r > g + 20 && r > b + 20)
+                ++redTop;
+        }
+    }
+
+    CHECK(redTop > 2000);
+}
+
+

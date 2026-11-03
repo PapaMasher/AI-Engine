@@ -5,5 +5,12 @@ layout(location = 0) out vec4 outNormal;
 
 void main()
 {
-    outNormal = vec4(normalize(vViewNormal), 1.0);
+    vec3 N = normalize(vViewNormal);
+
+    // Match the two-sided forward pass so SSAO sees correct normals for both
+    // sides of an imported mesh.
+    if (!gl_FrontFacing)
+        N = -N;
+
+    outNormal = vec4(N, 1.0);
 }

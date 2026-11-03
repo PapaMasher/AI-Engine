@@ -128,6 +128,12 @@ void main()
         discard;
 
     vec3 N = normalize(vNormal);
+
+    // Two-sided shading: imported meshes do not always use a consistent
+    // winding order, so flip the normal for back-facing fragments instead of
+    // relying on culling to hide them.
+    if (!gl_FrontFacing)
+        N = -N;
     if (pc.uParams.w > 0.5)
     {
         const vec3 tangentNormal = texture(sampler2D(uNormalTex, uLinearRepeat), vUV).xyz * 2.0 - 1.0;
