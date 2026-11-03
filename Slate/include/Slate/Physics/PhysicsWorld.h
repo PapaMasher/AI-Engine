@@ -32,6 +32,12 @@ public:
 
     void SetGravity(const glm::vec3& gravity);
 
+    // Sets the linear velocity of an entity's dynamic body, if it has one.
+    void SetBodyVelocity(Scene& scene, Entity entity, const glm::vec3& velocity);
+
+    // Applies an instantaneous linear impulse at the body's centre of mass.
+    void ApplyImpulse(Scene& scene, Entity entity, const glm::vec3& impulse);
+
     // Casts a ray through the physics world. Returns true on hit.
     bool Raycast(Scene& scene, const glm::vec3& origin, const glm::vec3& direction, float maxDistance,
         glm::vec3& outHitPoint, Entity& outEntity) const;

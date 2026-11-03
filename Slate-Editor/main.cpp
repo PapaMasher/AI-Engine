@@ -235,6 +235,35 @@ private:
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Demos"))
+        {
+            const struct
+            {
+                const char* Label;
+                const char* Path;
+            } demos[] = {
+                { "Studio Showcase — PBR, IBL, bloom", "Demos/StudioShowcase.json" },
+                { "Physics Stress — Box3D solver", "Demos/PhysicsStress.json" },
+                { "Raycast Shooter — rays and impulses", "Demos/RaycastShooter.json" },
+                { "HUD Toolkit — screen-space UI", "Demos/HudToolkit.json" },
+                { "Spatial Audio — 3D emitters", "Demos/AudioSpatial.json" },
+                { "SlateBlocks — 3D Tetris", "Scenes/SlateBlocks.json" },
+                { "Physics Playground", "Scenes/PhysicsPlayground.json" },
+                { "Prism Garden", "Scenes/PrismGarden.json" },
+            };
+
+            for (const auto& demo : demos)
+            {
+                if (ImGui::MenuItem(demo.Label))
+                {
+                    GetScene().Load(demo.Path);
+                    m_ScenePath = demo.Path;
+                    m_Selected = Entity();
+                }
+            }
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Automation"))
         {
             ImGui::Text("Status: %s", m_Automation.IsRunning() ? "listening" : "off");

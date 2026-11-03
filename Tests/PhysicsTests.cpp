@@ -203,3 +203,51 @@ TEST_CASE("Raycasts report misses cleanly")
 
     physics.Shutdown();
 }
+
+TEST_CASE("Setting body velocity moves a dynamic body")
+{
+    PhysicsWorld physics;
+    physics.Init();
+
+    Scene scene("Velocity");
+
+    Entity box = scene.CreateEntity("Box");
+    box.GetComponent<TransformComponent>().Translation = glm::vec3(0.0f, 4.0f, 0.0f);
+    auto& body = box.AddComponent<RigidBodyComponent>();
+    body.Type = BodyType::Dynamic;
+    body.UseGravity = false;
+    box.AddComponent<BoxColliderComponent>().HalfExtents = glm::vec3(0.5f);
+
+    physics.Step(scene, 0.0);
+    physics.SetBodyVelocity(scene, box, glm::vec3(2.0f, 0.0f, 0.0f));
+
+    for (int step = 0; step < 30; ++step)
+        physics.Step(scene, 1.0 / 60.0);
+
+    CHECK(box.GetComponent<TransformComponent>().Translation.x > 0.5f);
+
+    physics.Shutdown();
+}
+
+TEST_CASE("Impulses push a dynamic body upward")
+{
+    PhysicsWorld physics;
+    physics.Init();
+
+    Scene scene("Impulse");
+
+    Entity box = scene.CreateEntity("Box");
+    box.GetComponent<TransformComponent>().Translation = glm::vec3(0.0f, 4.0f, 0.0f);
+    box.AddComponent<RigidBodyComponent>().Type = BodyType::Dynamic;
+    box.GetComponent<RigidBodyComponent>().Mass = 1.0f;
+    box.AddComponent<BoxColliderComponent>().HalfExtents = glm::vec3(0.5f);
+
+    physics.Step(scene, 0.0);
+    physics.ApplyImpulse(scene, box, glm::vec3(0.0f, 12.0f, 0.0f));
+
+    physics.Step(scene, 1.0 / 60.0);
+
+    CHECK(box.GetComponent<TransformComponent>().Translation.y > 4.0f);
+
+    physics.Shutdown();
+}

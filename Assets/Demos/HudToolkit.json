@@ -1,0 +1,67 @@
+{
+  "name": "HudToolkit",
+  "environment": {
+    "ambientColor": [0.6, 0.7, 1.0],
+    "ambientIntensity": 0.2,
+    "exposure": 0.8,
+    "hdriPath": "HDRIs/studio_small_03_1k.hdr",
+    "showSkybox": false
+  },
+  "entities": [
+    {
+      "uuid": "d000000000000001",
+      "name": "Main Camera",
+      "transform": {
+        "translation": [0.0, 1.8, 7.0],
+        "rotation": [-8.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "camera": {
+        "fieldOfView": 50.0,
+        "nearClip": 0.1,
+        "farClip": 100.0,
+        "primary": true
+      }
+    },
+    {
+      "uuid": "d000000000000002",
+      "name": "Sun",
+      "transform": {
+        "translation": [0.0, 8.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "directionalLight": {
+        "direction": [-0.4, -1.0, -0.5],
+        "color": [1.0, 0.95, 0.9],
+        "intensity": 2.2,
+        "castShadows": true
+      }
+    },
+    {
+      "uuid": "d000000000000003",
+      "name": "Ground",
+      "transform": {
+        "translation": [0.0, -0.5, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [24.0, 1.0, 24.0]
+      },
+      "meshRenderer": {
+        "model": "Models/Cube.glb",
+        "tint": [0.12, 0.13, 0.16, 1.0],
+        "visible": true,
+        "castShadows": false
+      }
+    },
+    {
+      "uuid": "d000000000000004",
+      "name": "Game",
+      "transform": {
+        "translation": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "script": { "path": "Scripts/Demos/HudToolkit.lua" }
+    }
+  ]
+}

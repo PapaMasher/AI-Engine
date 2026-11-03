@@ -131,6 +131,22 @@ effects:
 Left/Right or A/D move, Down or S soft drop, Up or W rotate, Space hard drop,
 Enter restarts.
 
+## Technical demos
+
+`Assets/Demos/` holds five subsystem demos, available from the editor's
+**Demos** menu or the runtime:
+
+```bash
+./build/bin/Slate-Runtime.exe Demos/StudioShowcase.json   # PBR, IBL, shadows, bloom
+./build/bin/Slate-Runtime.exe Demos/PhysicsStress.json    # Box3D solver under load
+./build/bin/Slate-Runtime.exe Demos/RaycastShooter.json   # raycasts + impulses
+./build/bin/Slate-Runtime.exe Demos/HudToolkit.json       # screen-space UI
+./build/bin/Slate-Runtime.exe Demos/AudioSpatial.json     # 3D emitters
+```
+
+See [docs/DEMOS.md](docs/DEMOS.md) for what each one demonstrates and its
+controls.
+
 `Assets/Scenes/PhysicsPlayground.json` shows off the Box3D physics layer: it
 builds a five-row pyramid, drops a capsule and spheres onto the ground, and
 lets you spawn boxes that stack, topple and collide:

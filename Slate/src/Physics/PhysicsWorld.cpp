@@ -185,6 +185,34 @@ void PhysicsWorld::SetGravity(const glm::vec3& gravity)
         b3World_SetGravity(m_Impl->World, ToB3(gravity));
 }
 
+void PhysicsWorld::SetBodyVelocity(Scene& scene, Entity entity, const glm::vec3& velocity)
+{
+    (void)scene;
+
+    if (!m_Impl)
+        return;
+
+    const auto it = m_Impl->Bodies.find(entity.GetID());
+    if (it == m_Impl->Bodies.end() || !b3Body_IsValid(it->second))
+        return;
+
+    b3Body_SetLinearVelocity(it->second, ToB3(velocity));
+}
+
+void PhysicsWorld::ApplyImpulse(Scene& scene, Entity entity, const glm::vec3& impulse)
+{
+    (void)scene;
+
+    if (!m_Impl)
+        return;
+
+    const auto it = m_Impl->Bodies.find(entity.GetID());
+    if (it == m_Impl->Bodies.end() || !b3Body_IsValid(it->second))
+        return;
+
+    b3Body_ApplyLinearImpulseToCenter(it->second, ToB3(impulse), true);
+}
+
 b3BodyId CreateBody(b3WorldId world, Entity entity, RigidBodyComponent& body,
     TransformComponent& transform)
 {

@@ -281,9 +281,44 @@ void ScriptEngine::Init(Scene& scene, PhysicsWorld* physics, Renderer* renderer,
             m_Impl->Audio->PlaySound(path, volume, loop, spatial);
     });
 
+    m_Impl->Lua.set_function("PlaySoundAt", [this](const std::string& path, float volume,
+        bool loop, float x, float y, float z)
+    {
+        if (m_Impl->Audio)
+            m_Impl->Audio->PlaySound(path, volume, loop, true, glm::vec3(x, y, z));
+    });
+
     m_Impl->Lua.set_function("PhysicsBodyCount", [this]() -> int
     {
         return m_Impl->Physics ? static_cast<int>(m_Impl->Physics->GetBodyCount()) : 0;
+    });
+
+    m_Impl->Lua.set_function("SetVelocity", [this](Entity entity, float x, float y, float z)
+    {
+        if (m_Impl->Physics)
+            m_Impl->Physics->SetBodyVelocity(*m_Impl->ScenePtr, entity, glm::vec3(x, y, z));
+    });
+
+    m_Impl->Lua.set_function("ApplyImpulse", [this](Entity entity, float x, float y, float z)
+    {
+        if (m_Impl->Physics)
+            m_Impl->Physics->ApplyImpulse(*m_Impl->ScenePtr, entity, glm::vec3(x, y, z));
+    });
+
+    m_Impl->Lua.set_function("SetGravity", [this](float x, float y, float z)
+    {
+        if (m_Impl->Physics)
+            m_Impl->Physics->SetGravity(glm::vec3(x, y, z));
+    });
+
+    m_Impl->Lua.set_function("SetBloom", [this](bool enabled, float threshold, float intensity)
+    {
+        if (!m_Impl->UIRenderer)
+            return;
+
+        m_Impl->UIRenderer->SetBloomEnabled(enabled);
+        m_Impl->UIRenderer->SetBloomThreshold(threshold);
+        m_Impl->UIRenderer->SetBloomIntensity(intensity);
     });
 
     // Physics API.
