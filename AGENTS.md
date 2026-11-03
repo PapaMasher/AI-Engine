@@ -86,10 +86,12 @@ cd build
 ctest --output-on-failure
 ```
 
-- `SlateTests` — unit tests for core, assets, ECS, scene, physics, scripting.
-- `SlateIntegrationTests` — renders `Scenes/OrientationTest.json` into a hidden
-  window and asserts with real pixels that world +Y appears above world -Y.
-  This is the regression test for renderer orientation; never weaken it.
+- `SlateTests` — unit tests for core, assets, ECS, scene, physics, scripting,
+  input.
+- `SlateIntegrationTests` — renders into a hidden window and asserts from real
+  pixels that (a) world +Y appears above world -Y and (b) a lit cube shows its
+  front face rather than an unlit interior, which catches inverted triangle
+  winding. Never weaken these tests.
 
 Every new component, serialization field, physics behaviour or scripting API
 must come with a unit test in `Tests/`. Rendering changes need either a pixel

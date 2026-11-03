@@ -68,9 +68,10 @@ SLATE_MAX_FRAMES=120 SLATE_SCREENSHOT_PATH=shot.png ./build/bin/Slate-Editor.exe
 cd build && ctest --output-on-failure
 ```
 
-`SlateIntegrationTests` renders a hidden-window orientation scene and asserts
-from real pixels that world +Y appears above world -Y. This guards the renderer
-against NDC and viewport convention regressions.
+`SlateIntegrationTests` renders hidden-window scenes and asserts from real
+pixels that world +Y appears above world -Y, and that a lit cube shows its
+front face instead of an unlit interior. Together they guard the renderer
+against NDC, viewport and winding-convention regressions.
 
 ## AI automation
 
