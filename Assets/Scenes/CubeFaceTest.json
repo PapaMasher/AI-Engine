@@ -1,0 +1,57 @@
+{
+  "name": "CubeFaceTest",
+  "environment": {
+    "ambientColor": [0.15, 0.15, 0.15],
+    "ambientIntensity": 0.2,
+    "exposure": 1.0,
+    "hdriPath": "",
+    "showSkybox": false
+  },
+  "entities": [
+    {
+      "uuid": "6000000000000001",
+      "name": "Camera",
+      "transform": {
+        "translation": [0.0, 0.0, 5.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "camera": {
+        "fieldOfView": 45.0,
+        "nearClip": 0.1,
+        "farClip": 100.0,
+        "primary": true
+      }
+    },
+    {
+      "uuid": "6000000000000002",
+      "name": "Front Light",
+      "transform": {
+        "translation": [0.0, 0.0, 5.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "directionalLight": {
+        "direction": [-0.1, -0.2, -1.0],
+        "color": [1.0, 1.0, 1.0],
+        "intensity": 4.0,
+        "castShadows": false
+      }
+    },
+    {
+      "uuid": "6000000000000003",
+      "name": "Face",
+      "transform": {
+        "translation": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [2.5, 2.5, 2.5]
+      },
+      "meshRenderer": {
+        "model": "Models/Cube.glb",
+        "tint": [1.0, 1.0, 1.0, 1.0],
+        "visible": true,
+        "castShadows": false
+      }
+    }
+  ]
+}

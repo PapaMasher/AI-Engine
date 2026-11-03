@@ -416,7 +416,7 @@ void Renderer::CreatePipelines()
         state.depthStencilState.setDepthWriteEnable(true);
         state.depthStencilState.setDepthFunc(nvrhi::ComparisonFunc::LessOrEqual);
         state.rasterState.setCullMode(nvrhi::RasterCullMode::Back);
-        state.rasterState.frontCounterClockwise = false;
+        state.rasterState.frontCounterClockwise = true;
 
         nvrhi::GraphicsPipelineDesc desc;
         desc.setPrimType(nvrhi::PrimitiveType::TriangleList);
@@ -436,7 +436,7 @@ void Renderer::CreatePipelines()
         state.depthStencilState.setDepthWriteEnable(true);
         state.depthStencilState.setDepthFunc(nvrhi::ComparisonFunc::LessOrEqual);
         state.rasterState.setCullMode(nvrhi::RasterCullMode::Back);
-        state.rasterState.frontCounterClockwise = false;
+        state.rasterState.frontCounterClockwise = true;
 
         nvrhi::GraphicsPipelineDesc desc;
         desc.setPrimType(nvrhi::PrimitiveType::TriangleList);
@@ -459,7 +459,7 @@ void Renderer::CreatePipelines()
         state.depthStencilState.setDepthWriteEnable(false);
         state.depthStencilState.setDepthFunc(nvrhi::ComparisonFunc::Equal);
         state.rasterState.setCullMode(nvrhi::RasterCullMode::Back);
-        state.rasterState.frontCounterClockwise = false;
+        state.rasterState.frontCounterClockwise = true;
 
         nvrhi::GraphicsPipelineDesc desc;
         desc.setPrimType(nvrhi::PrimitiveType::TriangleList);
