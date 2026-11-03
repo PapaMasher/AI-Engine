@@ -249,7 +249,7 @@ spawnPiece = function()
     local entities = {}
     for _, cell in ipairs(shape) do
         local entity = CreateEntity("Block")
-        entity:SetMesh("Models/BoxTextured.glb")
+        entity:SetMesh("Models/Cube.glb")
         entity:SetTint(COLORS[kind][1], COLORS[kind][2], COLORS[kind][3], 1.0)
         entity:SetScale(0.92, 0.92, 0.92)
         local x, y = cellPosition(col + cell[1], row + cell[2])
@@ -306,7 +306,7 @@ function OnCreate(entity)
     scoreBar = {}
     for index = 1, 10 do
         local bar = CreateEntity("ScoreBar")
-        bar:SetMesh("Models/BoxTextured.glb")
+        bar:SetMesh("Models/Cube.glb")
         bar:SetTint(0.12, 0.14, 0.18, 1.0)
         bar:SetScale(0.5, 0.5, 0.5)
         bar:SetPosition(6.2, index - 1, 0.0)

@@ -162,6 +162,8 @@ while the editor renders.
 ## Asset conventions
 
 - Models: glTF 2.0 binary (`.glb`) with tangents; Y-up, metres.
+  `Models/Cube.glb` is a unit cube with a white material, intended for
+  tinted gameplay primitives; `Models/BoxTextured.glb` carries a texture.
 - Scenes: `Assets/Scenes/<Name>.json`, serialized by `Scene::Save`.
 - Scripts: `Assets/Scripts/<Name>.lua`; entity scripts implement
   `OnCreate(entity)`, `OnUpdate(entity, deltaTime)`, `OnDestroy(entity)`.

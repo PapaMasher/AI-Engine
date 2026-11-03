@@ -1,9 +1,13 @@
 {
   "name": "SlateBlocks",
   "environment": {
-    "ambientColor": [1.0, 1.0, 1.0],
-    "ambientIntensity": 0.45,
-    "exposure": 0.85,
+    "ambientColor": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "ambientIntensity": 0.25,
+    "exposure": 0.8,
     "hdriPath": "HDRIs/studio_small_03_1k.hdr",
     "showSkybox": false
   },
@@ -12,9 +16,21 @@
       "uuid": "5000000000000001",
       "name": "Main Camera",
       "transform": {
-        "translation": [0.0, 10.0, 26.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "translation": [
+          0.0,
+          10.0,
+          26.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "camera": {
         "fieldOfView": 45.0,
@@ -27,14 +43,34 @@
       "uuid": "5000000000000002",
       "name": "Sun",
       "transform": {
-        "translation": [0.0, 12.0, 10.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "translation": [
+          0.0,
+          12.0,
+          10.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "directionalLight": {
-        "direction": [-0.3, -0.6, -1.0],
-        "color": [1.0, 1.0, 1.0],
-        "intensity": 2.2,
+        "direction": [
+          -0.3,
+          -0.6,
+          -1.0
+        ],
+        "color": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "intensity": 1.4,
         "castShadows": true
       }
     },
@@ -42,13 +78,29 @@
       "uuid": "5000000000000003",
       "name": "Fill Light",
       "transform": {
-        "translation": [0.0, 14.0, 12.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "translation": [
+          0.0,
+          14.0,
+          12.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
       "pointLight": {
-        "color": [0.7, 0.8, 1.0],
-        "intensity": 6.0,
+        "color": [
+          0.7,
+          0.8,
+          1.0
+        ],
+        "intensity": 4.0,
         "range": 40.0
       }
     },
@@ -56,13 +108,30 @@
       "uuid": "5000000000000004",
       "name": "Backdrop",
       "transform": {
-        "translation": [0.0, 10.0, -1.6],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [11.5, 21.5, 0.4]
+        "translation": [
+          0.0,
+          10.0,
+          -1.6
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          11.5,
+          21.5,
+          0.4
+        ]
       },
       "meshRenderer": {
-        "model": "Models/BoxTextured.glb",
-        "tint": [0.05, 0.07, 0.11, 1.0],
+        "model": "Models/Cube.glb",
+        "tint": [
+          0.04,
+          0.05,
+          0.08,
+          1.0
+        ],
         "visible": true,
         "castShadows": false
       }
@@ -71,11 +140,25 @@
       "uuid": "5000000000000005",
       "name": "Game",
       "transform": {
-        "translation": [0.0, 0.0, 0.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "scale": [1.0, 1.0, 1.0]
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
       },
-      "script": { "path": "Scripts/SlateBlocks.lua" }
+      "script": {
+        "path": "Scripts/SlateBlocks.lua"
+      }
     }
   ]
 }
