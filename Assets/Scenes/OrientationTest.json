@@ -1,0 +1,55 @@
+{
+  "name": "OrientationTest",
+  "environment": {
+    "ambientColor": [1.0, 1.0, 1.0],
+    "ambientIntensity": 1.0,
+    "exposure": 1.0,
+    "hdriPath": "HDRIs/studio_small_03_1k.hdr",
+    "showSkybox": false
+  },
+  "entities": [
+    {
+      "uuid": "2000000000000001",
+      "name": "Camera",
+      "transform": {
+        "translation": [0.0, 0.0, 6.0],
+        "rotation": [0.0, 0.0, 0.0],
+        "scale": [1.0, 1.0, 1.0]
+      },
+      "camera": { "fieldOfView": 60.0, "nearClip": 0.1, "farClip": 100.0, "primary": true }
+    },
+    {
+      "uuid": "2000000000000002",
+      "name": "Sun",
+      "transform": { "translation": [0.0, 5.0, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0] },
+      "directionalLight": {
+        "direction": [-0.3, -0.5, -1.0],
+        "color": [1.0, 1.0, 1.0],
+        "intensity": 3.0,
+        "castShadows": false
+      }
+    },
+    {
+      "uuid": "2000000000000003",
+      "name": "Red Box Above",
+      "transform": { "translation": [0.0, 1.5, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0] },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [1.0, 0.05, 0.05, 1.0],
+        "visible": true,
+        "castShadows": false
+      }
+    },
+    {
+      "uuid": "2000000000000004",
+      "name": "Green Box Below",
+      "transform": { "translation": [0.0, -1.5, 0.0], "rotation": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0] },
+      "meshRenderer": {
+        "model": "Models/BoxTextured.glb",
+        "tint": [0.05, 1.0, 0.05, 1.0],
+        "visible": true,
+        "castShadows": false
+      }
+    }
+  ]
+}

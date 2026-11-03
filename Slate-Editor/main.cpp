@@ -1,0 +1,652 @@
+#include "Slate/Application.h"
+#include "Slate/Core/Log.h"
+#include "Slate/Core/CrashHandler.h"
+#include "Slate/Core/FileSystem.h"
+#include "Slate/Platform/Input.h"
+#include "Slate/Editor/AutomationServer.h"
+#include "Slate/Editor/GameExporter.h"
+
+#include <imgui.h>
+#include <nlohmann/json.hpp>
+
+#include <glm/glm.hpp>
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+
+namespace {
+
+using namespace Slate;
+
+class SlateEditor : public Application
+{
+public:
+    SlateEditor()
+        : Application({ "Slate Editor", 1600, 900 }, true)
+    {
+        GetContext().InitImGui();
+    }
+
+protected:
+    void OnStart() override
+    {
+        SLATE_INFO("Slate editor started; asset root: {}", FileSystem::GetAssetRoot().string());
+
+        m_ScenePath = "Scenes/TestScene.json";
+        if (const char* envScene = std::getenv("SLATE_SCENE"))
+            m_ScenePath = envScene;
+
+        if (!GetScene().Load(m_ScenePath))
+        {
+            SLATE_WARN("Could not load '{}', starting with an empty scene", m_ScenePath);
+            GetScene().SetName("Untitled");
+        }
+
+        uint16_t automationPort = 45800;
+        if (const char* envPort = std::getenv("SLATE_AUTOMATION_PORT"))
+            automationPort = static_cast<uint16_t>(std::strtoul(envPort, nullptr, 10));
+
+        m_Automation.Start(automationPort, [this](const nlohmann::json& request)
+        {
+            return HandleAutomation(request);
+        });
+    }
+
+    void OnShutdown() override
+    {
+        m_Automation.Stop();
+    }
+
+    void OnUpdate(double deltaTime) override
+    {
+        UpdateCamera(deltaTime);
+
+        if (Input::IsKeyPressed(Key::F5))
+            SetPlaying(!IsPlaying());
+
+        m_Automation.Poll();
+    }
+
+    void OnImGui() override
+    {
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        DrawMenuBar();
+        DrawHierarchy();
+        DrawInspector();
+        DrawStatistics();
+    }
+
+private:
+    void DrawMenuBar()
+    {
+        if (!ImGui::BeginMainMenuBar())
+            return;
+
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::MenuItem("New Scene"))
+            {
+                GetScene().SetName("Untitled");
+                m_Selected = Entity();
+            }
+            if (ImGui::MenuItem("Open Test Scene"))
+            {
+                GetScene().Load("Scenes/TestScene.json");
+                m_Selected = Entity();
+            }
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+                GetScene().Save(m_ScenePath);
+            if (ImGui::MenuItem("Save Scene As..."))
+                GetScene().Save("Scenes/SavedScene.json");
+            if (ImGui::MenuItem("Export Game..."))
+            {
+                ExportOptions options;
+                options.Name = GetScene().GetName();
+                options.ScenePath = m_ScenePath;
+                std::string error;
+                if (!ExportGame(GetScene(), options, error))
+                    SLATE_ERROR("Export failed: {}", error);
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit"))
+                Close();
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Entity"))
+        {
+            if (ImGui::MenuItem("Create Empty"))
+                m_Selected = GetScene().CreateEntity("Entity");
+            if (ImGui::MenuItem("Create Camera"))
+            {
+                m_Selected = GetScene().CreateEntity("Camera");
+                m_Selected.AddComponent<CameraComponent>();
+            }
+            if (ImGui::MenuItem("Create Directional Light"))
+            {
+                m_Selected = GetScene().CreateEntity("Directional Light");
+                m_Selected.AddComponent<DirectionalLightComponent>();
+            }
+            if (ImGui::MenuItem("Create Point Light"))
+            {
+                m_Selected = GetScene().CreateEntity("Point Light");
+                m_Selected.AddComponent<PointLightComponent>();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Delete Selected", nullptr, false, m_Selected.IsValid()))
+            {
+                GetScene().DestroyEntity(m_Selected);
+                m_Selected = Entity();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View"))
+        {
+            ImGui::MenuItem("Demo Window", nullptr, &m_ShowDemo);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Automation"))
+        {
+            ImGui::Text("Status: %s", m_Automation.IsRunning() ? "listening" : "off");
+            ImGui::Text("Port: %u", m_Automation.GetPort());
+            ImGui::TextDisabled("Newline-delimited JSON over TCP");
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Play"))
+        {
+            if (ImGui::MenuItem(IsPlaying() ? "Stop" : "Play", "F5"))
+                SetPlaying(!IsPlaying());
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+
+    void DrawHierarchy()
+    {
+        ImGui::Begin("Hierarchy");
+
+        if (ImGui::Button("Create Entity"))
+            m_Selected = GetScene().CreateEntity("Entity");
+        ImGui::SameLine();
+        if (ImGui::Button("Delete") && m_Selected.IsValid())
+        {
+            GetScene().DestroyEntity(m_Selected);
+            m_Selected = Entity();
+        }
+
+        ImGui::Separator();
+
+        GetScene().GetRegistry().Each<TagComponent>([&](Entity entity, TagComponent& tag)
+        {
+            ImGui::PushID(static_cast<int>(entity.GetID()));
+            const bool selected = (m_Selected == entity);
+            if (ImGui::Selectable(tag.Name.c_str(), selected))
+                m_Selected = entity;
+            ImGui::PopID();
+        });
+
+        ImGui::End();
+    }
+
+    void DrawInspector()
+    {
+        ImGui::Begin("Inspector");
+
+        if (!m_Selected.IsValid())
+        {
+            ImGui::TextDisabled("No entity selected");
+            ImGui::End();
+            return;
+        }
+
+        if (m_Selected.HasComponent<TagComponent>())
+        {
+            auto& tag = m_Selected.GetComponent<TagComponent>();
+            char nameBuffer[256];
+            std::snprintf(nameBuffer, sizeof(nameBuffer), "%s", tag.Name.c_str());
+            if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+                tag.Name = nameBuffer;
+        }
+
+        ImGui::Separator();
+
+        if (m_Selected.HasComponent<TransformComponent>())
+        {
+            auto& transform = m_Selected.GetComponent<TransformComponent>();
+            ImGui::Text("Transform");
+            ImGui::DragFloat3("Translation", &transform.Translation.x, 0.05f);
+            ImGui::DragFloat3("Rotation", &transform.Rotation.x, 0.5f);
+            ImGui::DragFloat3("Scale", &transform.Scale.x, 0.05f, 0.001f, 1000.0f);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<MeshRendererComponent>())
+        {
+            auto& renderer = m_Selected.GetComponent<MeshRendererComponent>();
+            ImGui::Text("Mesh Renderer");
+
+            char modelBuffer[512];
+            std::snprintf(modelBuffer, sizeof(modelBuffer), "%s", renderer.ModelPath.c_str());
+            if (ImGui::InputText("Model", modelBuffer, sizeof(modelBuffer)))
+                renderer.ModelPath = modelBuffer;
+
+            ImGui::ColorEdit4("Tint", &renderer.Tint.x);
+            ImGui::Checkbox("Visible", &renderer.Visible);
+            ImGui::Checkbox("Cast Shadows", &renderer.CastShadows);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<CameraComponent>())
+        {
+            auto& camera = m_Selected.GetComponent<CameraComponent>();
+            ImGui::Text("Camera");
+            ImGui::DragFloat("Field of View", &camera.FieldOfView, 0.5f, 10.0f, 170.0f);
+            ImGui::DragFloat("Near Clip", &camera.NearClip, 0.01f, 0.001f, 10.0f);
+            ImGui::DragFloat("Far Clip", &camera.FarClip, 1.0f, 1.0f, 10000.0f);
+            ImGui::Checkbox("Primary", &camera.Primary);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<DirectionalLightComponent>())
+        {
+            auto& light = m_Selected.GetComponent<DirectionalLightComponent>();
+            ImGui::Text("Directional Light");
+            ImGui::DragFloat3("Direction", &light.Direction.x, 0.02f);
+            ImGui::ColorEdit3("Color", &light.Color.x);
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.05f, 0.0f, 100.0f);
+            ImGui::Checkbox("Cast Shadows", &light.CastShadows);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<PointLightComponent>())
+        {
+            auto& light = m_Selected.GetComponent<PointLightComponent>();
+            ImGui::Text("Point Light");
+            ImGui::ColorEdit3("Color", &light.Color.x);
+            ImGui::DragFloat("Intensity", &light.Intensity, 0.05f, 0.0f, 100.0f);
+            ImGui::DragFloat("Range", &light.Range, 0.1f, 0.1f, 1000.0f);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<RigidBodyComponent>())
+        {
+            auto& body = m_Selected.GetComponent<RigidBodyComponent>();
+            ImGui::Text("Rigid Body");
+            const char* types[] = { "Static", "Dynamic", "Kinematic" };
+            int current = static_cast<int>(body.Type);
+            if (ImGui::Combo("Type", &current, types, IM_ARRAYSIZE(types)))
+                body.Type = static_cast<BodyType>(current);
+            ImGui::DragFloat("Mass", &body.Mass, 0.05f, 0.01f, 10000.0f);
+            ImGui::DragFloat("Friction", &body.Friction, 0.01f, 0.0f, 2.0f);
+            ImGui::DragFloat("Restitution", &body.Restitution, 0.01f, 0.0f, 1.0f);
+            ImGui::Checkbox("Use Gravity", &body.UseGravity);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<BoxColliderComponent>())
+        {
+            auto& collider = m_Selected.GetComponent<BoxColliderComponent>();
+            ImGui::Text("Box Collider");
+            ImGui::DragFloat3("Half Extents", &collider.HalfExtents.x, 0.01f, 0.001f, 1000.0f);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<SphereColliderComponent>())
+        {
+            auto& collider = m_Selected.GetComponent<SphereColliderComponent>();
+            ImGui::Text("Sphere Collider");
+            ImGui::DragFloat("Radius", &collider.Radius, 0.01f, 0.001f, 1000.0f);
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<ScriptComponent>())
+        {
+            auto& script = m_Selected.GetComponent<ScriptComponent>();
+            ImGui::Text("Script");
+            char pathBuffer[512];
+            std::snprintf(pathBuffer, sizeof(pathBuffer), "%s", script.ScriptPath.c_str());
+            if (ImGui::InputText("Script", pathBuffer, sizeof(pathBuffer)))
+                script.ScriptPath = pathBuffer;
+            ImGui::Separator();
+        }
+
+        if (m_Selected.HasComponent<AudioSourceComponent>())
+        {
+            auto& audio = m_Selected.GetComponent<AudioSourceComponent>();
+            ImGui::Text("Audio Source");
+            char clipBuffer[512];
+            std::snprintf(clipBuffer, sizeof(clipBuffer), "%s", audio.ClipPath.c_str());
+            if (ImGui::InputText("Clip", clipBuffer, sizeof(clipBuffer)))
+                audio.ClipPath = clipBuffer;
+            ImGui::DragFloat("Volume", &audio.Volume, 0.01f, 0.0f, 1.0f);
+            ImGui::Checkbox("Loop", &audio.Loop);
+            ImGui::Checkbox("Play On Start", &audio.PlayOnStart);
+            ImGui::Checkbox("Spatial", &audio.Spatial);
+            ImGui::Separator();
+        }
+
+        if (ImGui::Button("Add Component..."))
+            ImGui::OpenPopup("AddComponentPopup");
+
+        if (ImGui::BeginPopup("AddComponentPopup"))
+        {
+            if (!m_Selected.HasComponent<MeshRendererComponent>() && ImGui::MenuItem("Mesh Renderer"))
+                m_Selected.AddComponent<MeshRendererComponent>();
+            if (!m_Selected.HasComponent<CameraComponent>() && ImGui::MenuItem("Camera"))
+                m_Selected.AddComponent<CameraComponent>();
+            if (!m_Selected.HasComponent<DirectionalLightComponent>() && ImGui::MenuItem("Directional Light"))
+                m_Selected.AddComponent<DirectionalLightComponent>();
+            if (!m_Selected.HasComponent<PointLightComponent>() && ImGui::MenuItem("Point Light"))
+                m_Selected.AddComponent<PointLightComponent>();
+            if (!m_Selected.HasComponent<RigidBodyComponent>() && ImGui::MenuItem("Rigid Body"))
+                m_Selected.AddComponent<RigidBodyComponent>();
+            if (!m_Selected.HasComponent<BoxColliderComponent>() && ImGui::MenuItem("Box Collider"))
+                m_Selected.AddComponent<BoxColliderComponent>();
+            if (!m_Selected.HasComponent<SphereColliderComponent>() && ImGui::MenuItem("Sphere Collider"))
+                m_Selected.AddComponent<SphereColliderComponent>();
+            if (!m_Selected.HasComponent<ScriptComponent>() && ImGui::MenuItem("Script"))
+                m_Selected.AddComponent<ScriptComponent>();
+            if (!m_Selected.HasComponent<AudioSourceComponent>() && ImGui::MenuItem("Audio Source"))
+                m_Selected.AddComponent<AudioSourceComponent>();
+            ImGui::EndPopup();
+        }
+
+        ImGui::End();
+    }
+
+    void DrawStatistics()
+    {
+        ImGui::Begin("Statistics");
+
+        const auto& stats = GetRenderer().GetStatistics();
+        ImGui::Text("FPS: %.1f", GetFrameTimer().GetFramesPerSecond());
+        ImGui::Text("Frame time: %.2f ms", GetFrameTimer().GetDeltaTime() * 1000.0);
+        ImGui::Text("Draw calls: %u", stats.DrawCalls);
+        ImGui::Text("Triangles: %u", stats.Triangles);
+        ImGui::Text("Entities: %zu", GetScene().GetEntityCount());
+        ImGui::Text("Viewport: %u x %u", GetContext().GetSwapchainExtent().width,
+            GetContext().GetSwapchainExtent().height);
+        ImGui::Text("GPU: %s", GetContext().GetDeviceProperties().deviceName);
+        ImGui::Text("IBL: %s", GetRenderer().IsIBLReady() ? "ready" : "pending");
+        ImGui::Text("Physics bodies: %zu", GetPhysics().GetBodyCount());
+        ImGui::Text("Script instances: %zu", GetScripts().GetInstanceCount());
+        ImGui::Text("Active sounds: %zu", GetAudio().GetActiveSoundCount());
+        ImGui::Text("Playing: %s", IsPlaying() ? "yes" : "no");
+
+        ImGui::End();
+
+        if (m_ShowDemo)
+            ImGui::ShowDemoWindow(&m_ShowDemo);
+    }
+
+    void UpdateCamera(double deltaTime)
+    {
+        Entity camera = GetScene().GetPrimaryCameraEntity();
+        if (!camera.IsValid() || !camera.HasComponent<TransformComponent>())
+            return;
+
+        auto& transform = camera.GetComponent<TransformComponent>();
+
+        if (Input::IsMouseButtonDown(MouseButton::Right))
+        {
+            const glm::vec2 delta = Input::GetMouseDelta();
+            transform.Rotation.y -= delta.x * 0.15f;
+            transform.Rotation.x = std::clamp(transform.Rotation.x - delta.y * 0.15f, -89.0f, 89.0f);
+        }
+
+        const glm::mat4 local = transform.GetLocalMatrix();
+        const glm::vec3 forward = -glm::normalize(glm::vec3(local[2]));
+        const glm::vec3 right = glm::normalize(glm::vec3(local[0]));
+
+        float speed = 5.0f * static_cast<float>(deltaTime);
+        if (Input::IsKeyDown(Key::LeftShift))
+            speed *= 3.0f;
+
+        if (Input::IsKeyDown(Key::W))
+            transform.Translation += forward * speed;
+        if (Input::IsKeyDown(Key::S))
+            transform.Translation -= forward * speed;
+        if (Input::IsKeyDown(Key::D))
+            transform.Translation += right * speed;
+        if (Input::IsKeyDown(Key::A))
+            transform.Translation -= right * speed;
+        if (Input::IsKeyDown(Key::E))
+            transform.Translation.y += speed;
+        if (Input::IsKeyDown(Key::Q))
+            transform.Translation.y -= speed;
+    }
+
+    Entity ResolveEntity(const nlohmann::json& request)
+    {
+        if (request.contains("uuid") && request["uuid"].is_string())
+        {
+            const Slate::UUID id(std::stoull(request["uuid"].get<std::string>(), nullptr, 16));
+            return GetScene().FindEntityByUUID(id);
+        }
+
+        if (request.contains("name") && request["name"].is_string())
+        {
+            const std::string name = request["name"].get<std::string>();
+            Entity found;
+            GetScene().GetRegistry().Each<TagComponent>([&](Entity entity, TagComponent& tag)
+            {
+                if (!found.IsValid() && tag.Name == name)
+                    found = entity;
+            });
+            return found;
+        }
+
+        return Entity();
+    }
+
+    static glm::vec3 ReadVec3(const nlohmann::json& value, const glm::vec3& fallback)
+    {
+        if (!value.is_array() || value.size() < 3)
+            return fallback;
+        return glm::vec3(value[0].get<float>(), value[1].get<float>(), value[2].get<float>());
+    }
+
+    nlohmann::json HandleAutomation(const nlohmann::json& request)
+    {
+        const std::string command = request.value("cmd", "");
+        nlohmann::json response { { "ok", true }, { "cmd", command } };
+
+        if (command == "ping")
+        {
+            response["engine"] = "Slate";
+            return response;
+        }
+
+        if (command == "stats")
+        {
+            const auto& stats = GetRenderer().GetStatistics();
+            response["fps"] = GetFrameTimer().GetFramesPerSecond();
+            response["entities"] = GetScene().GetEntityCount();
+            response["drawCalls"] = stats.DrawCalls;
+            response["triangles"] = stats.Triangles;
+            response["physicsBodies"] = GetPhysics().GetBodyCount();
+            response["scriptInstances"] = GetScripts().GetInstanceCount();
+            response["playing"] = IsPlaying();
+            return response;
+        }
+
+        if (command == "list_entities")
+        {
+            nlohmann::json entities = nlohmann::json::array();
+            GetScene().GetRegistry().Each<TagComponent>([&](Entity entity, TagComponent& tag)
+            {
+                entities.push_back({ { "name", tag.Name }, { "uuid", GetScene().GetEntityUUID(entity).ToString() } });
+            });
+            response["entities"] = entities;
+            return response;
+        }
+
+        if (command == "create_entity")
+        {
+            const std::string name = request.value("name", "Entity");
+            Entity entity = GetScene().CreateEntity(name);
+            m_Selected = entity;
+            response["uuid"] = GetScene().GetEntityUUID(entity).ToString();
+            return response;
+        }
+
+        Entity entity = ResolveEntity(request);
+
+        if (command == "delete_entity")
+        {
+            if (!entity.IsValid())
+                return { { "ok", false }, { "error", "entity not found" } };
+            GetScene().DestroyEntity(entity);
+            m_Selected = Entity();
+            return response;
+        }
+
+        const bool needsEntity = command != "load_scene" && command != "save_scene"
+            && command != "screenshot" && command != "play" && command != "stop"
+            && command != "export" && command != "quit";
+
+        if (needsEntity && !entity.IsValid())
+            return { { "ok", false }, { "error", "entity not found" } };
+
+        if (command == "set_transform")
+        {
+            auto& transform = entity.GetComponent<TransformComponent>();
+            if (request.contains("translation"))
+                transform.Translation = ReadVec3(request["translation"], transform.Translation);
+            if (request.contains("rotation"))
+                transform.Rotation = ReadVec3(request["rotation"], transform.Rotation);
+            if (request.contains("scale"))
+                transform.Scale = ReadVec3(request["scale"], transform.Scale);
+            return response;
+        }
+
+        if (command == "set_mesh")
+        {
+            if (!entity.HasComponent<MeshRendererComponent>())
+                entity.AddComponent<MeshRendererComponent>();
+            entity.GetComponent<MeshRendererComponent>().ModelPath = request.value("model", "");
+            return response;
+        }
+
+        if (command == "add_component")
+        {
+            const std::string component = request.value("component", "");
+            if (component == "meshrenderer" && !entity.HasComponent<MeshRendererComponent>())
+                entity.AddComponent<MeshRendererComponent>();
+            else if (component == "camera" && !entity.HasComponent<CameraComponent>())
+                entity.AddComponent<CameraComponent>();
+            else if (component == "directionallight" && !entity.HasComponent<DirectionalLightComponent>())
+                entity.AddComponent<DirectionalLightComponent>();
+            else if (component == "pointlight" && !entity.HasComponent<PointLightComponent>())
+                entity.AddComponent<PointLightComponent>();
+            else if (component == "rigidbody" && !entity.HasComponent<RigidBodyComponent>())
+            {
+                auto& body = entity.AddComponent<RigidBodyComponent>();
+                body.Type = static_cast<BodyType>(request.value("type", 0));
+                body.Mass = request.value("mass", 1.0f);
+            }
+            else if (component == "boxcollider" && !entity.HasComponent<BoxColliderComponent>())
+            {
+                auto& collider = entity.AddComponent<BoxColliderComponent>();
+                if (request.contains("halfExtents"))
+                    collider.HalfExtents = ReadVec3(request["halfExtents"], collider.HalfExtents);
+            }
+            else if (component == "spherecollider" && !entity.HasComponent<SphereColliderComponent>())
+                entity.AddComponent<SphereColliderComponent>().Radius = request.value("radius", 0.5f);
+            else if (component == "script" && !entity.HasComponent<ScriptComponent>())
+                entity.AddComponent<ScriptComponent>().ScriptPath = request.value("path", "");
+            else if (component == "audio" && !entity.HasComponent<AudioSourceComponent>())
+                entity.AddComponent<AudioSourceComponent>().ClipPath = request.value("clip", "");
+            return response;
+        }
+
+        if (command == "load_scene")
+        {
+            const std::string path = request.value("path", "Scenes/TestScene.json");
+            if (!GetScene().Load(path))
+                return { { "ok", false }, { "error", "failed to load scene" } };
+            m_ScenePath = path;
+            m_Selected = Entity();
+            return response;
+        }
+
+        if (command == "save_scene")
+        {
+            const std::string path = request.value("path", m_ScenePath);
+            if (!GetScene().Save(path))
+                return { { "ok", false }, { "error", "failed to save scene" } };
+            m_ScenePath = path;
+            return response;
+        }
+
+        if (command == "screenshot")
+        {
+            const std::string path = request.value("path", "screenshots/editor.png");
+            RequestScreenshot(path);
+            response["path"] = path;
+            return response;
+        }
+
+        if (command == "play")
+        {
+            SetPlaying(true);
+            return response;
+        }
+
+        if (command == "stop")
+        {
+            SetPlaying(false);
+            return response;
+        }
+
+        if (command == "export")
+        {
+            ExportOptions options;
+            options.Name = request.value("name", GetScene().GetName());
+            options.ScenePath = request.value("scene", m_ScenePath);
+            options.OutputDirectory = request.value("output", "Export");
+            std::string error;
+            if (!ExportGame(GetScene(), options, error))
+                return { { "ok", false }, { "error", error } };
+            response["output"] = (std::filesystem::path(options.OutputDirectory) / options.Name).string();
+            return response;
+        }
+
+        if (command == "quit")
+        {
+            Close();
+            return response;
+        }
+
+        return { { "ok", false }, { "error", "unknown command" } };
+    }
+
+    Entity m_Selected;
+    std::string m_ScenePath;
+    bool m_ShowDemo = false;
+    AutomationServer m_Automation;
+};
+
+} // namespace
+
+int main()
+{
+    Slate::Log::Init("Slate-Editor.log");
+    Slate::InstallCrashHandler();
+    SLATE_INFO("Slate Editor");
+
+    {
+        SlateEditor editor;
+        editor.Run();
+    }
+
+    Slate::Log::Shutdown();
+    return 0;
+}
